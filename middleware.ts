@@ -5,9 +5,6 @@ import { NextResponse } from "next/server";
 const { auth } = NextAuth(authConfig);
 
 export default auth((req) => {
-  const isAuthRoute = req.nextUrl.pathname.startsWith("/api/auth");
-  if (isAuthRoute) return NextResponse.next();
-
   if (!req.auth) {
     const loginUrl = new URL("/login", req.nextUrl.origin);
     loginUrl.searchParams.set("callbackUrl", req.nextUrl.pathname);
@@ -18,5 +15,7 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|login|api/auth).*)",
+  ],
 };
