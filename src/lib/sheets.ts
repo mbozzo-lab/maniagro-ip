@@ -177,8 +177,8 @@ export async function deleteSolicitudFromSheet(solicitudId: number): Promise<voi
   const sheetMeta = meta.data.sheets?.find(
     (s) => s.properties?.title === SHEET_NAME,
   );
-  if (!sheetMeta?.properties?.sheetId == null) return;
-  const sheetId = sheetMeta.properties!.sheetId!;
+  const sheetId = sheetMeta?.properties?.sheetId;
+  if (sheetId == null) return;;
 
   // deleteDimension uses 0-based row indices.
   // arrayIndex IS the 0-based row index (header = 0, first data row = 1, etc.).
