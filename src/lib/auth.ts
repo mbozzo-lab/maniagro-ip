@@ -19,14 +19,26 @@ declare module "next-auth" {
   }
 }
 
+declare module "next-auth/jwt" {
+  interface JWT {
+    role?: Role;
+  }
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   ...authConfig,
   callbacks: {
     ...authConfig.callbacks,
-    session({ session, user }) {
-      session.user.id = user.id;
-      session.user.role = (user as { role: Role }).role;
+    async jwt({ token, user }) {
+      if (user) {
+        token.role = (user as { role: Role }).role;
+      }
+      return token;
+    },
+    session({ session, token }) {
+      session.user.id = token.sub!;
+      session.user.role = token.role as Role;
       return session;
     },
   },

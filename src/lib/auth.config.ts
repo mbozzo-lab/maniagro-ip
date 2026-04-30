@@ -8,9 +8,16 @@ export default {
       clientSecret: process.env.AUTH_GOOGLE_SECRET!,
     }),
   ],
+  session: { strategy: "jwt" },
+  trustHost: true,
   callbacks: {
     signIn({ user }) {
       return user.email?.endsWith("@maniagro.com") ?? false;
+    },
+    redirect({ url, baseUrl }) {
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      if (new URL(url).origin === baseUrl) return url;
+      return baseUrl;
     },
   },
   pages: {
