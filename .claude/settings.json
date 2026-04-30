@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e \"try { require\\('next-auth/jwt'\\); console.log\\('next-auth/jwt OK'\\); } catch\\(e\\) { console.log\\('next-auth/jwt FAIL:', e.message\\); }\")",
+      "Bash(npm run *)"
+    ]
+  }
+}
