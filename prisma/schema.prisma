@@ -1,0 +1,147 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum Role {
+  REFERENTE
+  COLABORADOR
+}
+
+enum Tipo {
+  ST
+  SNP
+}
+
+enum Clasificacion {
+  A
+  B
+  C
+}
+
+enum Estado {
+  NO_INICIADO
+  EN_PROCESO
+  EN_REVISION
+  FINALIZADO
+  RETRASADO
+  ANULADO
+}
+
+enum Prioridad {
+  BAJA
+  MEDIA
+  ALTA
+}
+
+// ─── Auth models (NextAuth Prisma Adapter) ───────────────────────────────────
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── App models ──────────────────────────────────────────────────────────────
+
+model User {
+  id            String      @id @default(cuid())
+  name          String?
+  email         String      @unique
+  emailVerified DateTime?
+  image         String?
+  role          Role        @default(COLABORADOR)
+  accounts      Account[]
+  sessions      Session[]
+  solicitudes   Solicitud[] @relation("Responsable")
+  createdAt     DateTime    @default(now())
+}
+
+model Solicitud {
+  id             Int            @id @default(autoincrement())
+  numero         Int?
+  proyecto       String
+  driver         String?
+  planta         String?
+  linea          String?
+  tipo           Tipo?
+  clasificacion  Clasificacion?
+  origen         String?
+  prioridad      Prioridad      @default(MEDIA)
+  criterio       String?
+  detalle        String?
+  activo         Boolean        @default(true)
+  asignado       String?
+  inversionEst   String?
+  nroConsuman    String?
+  fechaInicio    DateTime?
+  avance         Float?
+  estado         Estado         @default(NO_INICIADO)
+  fechaFin       DateTime?
+  comentario     String?
+  gerencia       Boolean?
+  im             Boolean?
+  repasarCon     String?
+  defGcia        String?
+  definicionIM   String?
+  revisar        Boolean        @default(false)
+  responsable    User?          @relation("Responsable", fields: [responsableId], references: [id])
+  responsableId  String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+}
+
+model CriterioClasificacion {
+  id               Int           @id @default(autoincrement())
+  tipo             Tipo
+  clasificacion    Clasificacion
+  nombre           String
+  definicion       String
+  criterio1Label   String
+  criterio1        String
+  criterio2Label   String
+  criterio2        String
+  criterio3Label   String
+  criterio3        String
+  rolPruebas       String
+  ejemplos         String
+  clientesDirectos String
+
+  @@unique([tipo, clasificacion])
+}
