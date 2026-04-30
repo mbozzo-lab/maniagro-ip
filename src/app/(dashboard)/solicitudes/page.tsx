@@ -5,6 +5,7 @@ import SolicitudKanban from "@/components/SolicitudKanban";
 import NuevaSolicitudModal from "@/components/NuevaSolicitudModal";
 import type { Tipo, Prioridad, Clasificacion } from "@/generated/prisma/client";
 import { syncSolicitudToSheet } from "@/lib/sheets";
+import { sendAssignmentEmail } from "@/lib/email";
 
 async function getSolicitudes() {
   return prisma.solicitud.findMany({
@@ -38,6 +39,22 @@ async function crearSolicitud(data: FormData) {
     },
   });
   await syncSolicitudToSheet(created).catch(console.error);
+
+  if (responsableId) {
+    const user = await prisma.user.findUnique({
+      where: { id: responsableId },
+      select: { email: true, name: true },
+    });
+    if (user?.email) {
+      await sendAssignmentEmail({
+        toEmail: user.email,
+        toName: user.name ?? user.email,
+        projectName: created.proyecto,
+        projectId: created.id,
+      }).catch(console.error);
+    }
+  }
+
   revalidatePath("/solicitudes");
 }
 
