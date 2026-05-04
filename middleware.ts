@@ -19,3 +19,4 @@ export const config = {
     "/((?!_next/static|_next/image|favicon.ico|login|api/auth|api/sync-from-sheet).*)",
   ],
 };
+
