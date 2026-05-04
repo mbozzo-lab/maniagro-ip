@@ -10,11 +10,7 @@ export default function SyncSheetButton() {
     setStatus("loading");
     setResult(null);
     try {
-      const res = await fetch("/api/sync-from-sheet", {
-        headers: {
-          Authorization: `Bearer ${process.env.NEXT_PUBLIC_CRON_SECRET ?? ""}`,
-        },
-      });
+      const res = await fetch("/api/sync-from-sheet");
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Error");
       setResult({ updated: data.updated, skipped: data.skipped });
