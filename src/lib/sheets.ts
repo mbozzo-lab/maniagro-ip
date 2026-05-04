@@ -166,6 +166,10 @@ export async function syncSolicitudToSheet(solicitud: Solicitud): Promise<void> 
 // rows.  Each section becomes one table: its first non-blank row is the header,
 // the rest are data rows.  Single-row blocks (title-only lines) are attached as
 // the titulo of the next data section.
+//
+// Inline-title detection: if a block's first row has ≤2 non-empty cells and its
+// second row has ≥3 non-empty cells, the first row is the section title and the
+// second row is the table header (headerIndex = 1).
 
 export type CriterioSection = {
   titulo:  string;     // section title (may be empty)
@@ -180,7 +184,7 @@ export async function getCriteriosData(): Promise<CriterioSection[]> {
   const sheets = google.sheets({ version: "v4", auth });
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID!,
-    range: "CLASIF!A1:G150",
+    range: "CLASIF!A1:Z150",
   });
 
   const raw = (res.data.values ?? []) as unknown[][];
@@ -207,17 +211,26 @@ export async function getCriteriosData(): Promise<CriterioSection[]> {
   let pendingTitle = "";
 
   for (const block of blocks) {
-    const nonEmpty = block[0]?.filter(Boolean) ?? [];
-    const isTitleOnly = block.length === 1 && nonEmpty.length <= 2;
+    const firstNonEmpty = block[0]?.filter(Boolean) ?? [];
+    const isTitleOnly = block.length === 1 && firstNonEmpty.length <= 2;
 
     if (isTitleOnly) {
-      pendingTitle = nonEmpty[0] ?? "";
-    } else {
-      const headers = block[0] ?? [];
-      const rows    = block.slice(1).filter((r) => r.some(Boolean));
-      sections.push({ titulo: pendingTitle, headers, rows });
-      pendingTitle = "";
+      pendingTitle = firstNonEmpty[0] ?? "";
+      continue;
     }
+
+    // Inline-title: first row has ≤2 cells, second row has ≥3 cells.
+    const secondNonEmpty = block[1]?.filter(Boolean) ?? [];
+    let headerIndex = 0;
+    if (firstNonEmpty.length <= 2 && secondNonEmpty.length >= 3) {
+      pendingTitle = pendingTitle || (firstNonEmpty[0] ?? "");
+      headerIndex = 1;
+    }
+
+    const headers = block[headerIndex] ?? [];
+    const rows    = block.slice(headerIndex + 1).filter((r) => r.some(Boolean));
+    sections.push({ titulo: pendingTitle, headers, rows });
+    pendingTitle = "";
   }
 
   return sections;
