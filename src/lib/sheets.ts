@@ -262,3 +262,99 @@ export async function deleteSolicitudFromSheet(solicitudId: number): Promise<voi
     },
   });
 }
+
+// ─── Sheet → DB reader ────────────────────────────────────────────────────────
+export type SheetSolicitud = {
+  _id:          number;
+  numero:       number | null;
+  proyecto:     string;
+  driver:       string | null;
+  planta:       string | null;
+  linea:        string | null;
+  tipo:         string | null;
+  clasificacion:string | null;
+  origen:       string | null;
+  prioridad:    string;
+  criterio:     string | null;
+  detalle:      string | null;
+  activo:       boolean;
+  asignado:     string | null;
+  inversionEst: string | null;
+  nroConsuman:  string | null;
+  fechaInicio:  Date | null;
+  avance:       number | null;
+  estado:       string;
+  fechaFin:     Date | null;
+  comentario:   string | null;
+  gerencia:     boolean | null;
+  im:           boolean | null;
+  repasarCon:   string | null;
+  defGcia:      string | null;
+  definicionIM: string | null;
+};
+
+export async function readSolicitudesFromSheet(): Promise<SheetSolicitud[]> {
+  const auth = getAuth();
+  if (!auth) return [];
+
+  const sheets = google.sheets({ version: "v4", auth });
+
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: SPREADSHEET_ID!,
+    range: ref("A1:AA5000"),
+  });
+
+  const rows = (res.data.values ?? []) as string[][];
+  if (rows.length < 2) return [];
+
+  const parseDate = (val: string): Date | null => {
+    if (!val) return null;
+    const [d, m, y] = val.split("/");
+    if (!d || !m || !y) return null;
+    const date = new Date(Number(y), Number(m) - 1, Number(d));
+    return isNaN(date.getTime()) ? null : date;
+  };
+
+  const parseBool = (val: string): boolean | null => {
+    if (!val) return null;
+    return val.toUpperCase() === "SI";
+  };
+
+  // Skip header row (index 0), process data rows
+  const results: SheetSolicitud[] = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    const idStr = r[25]; // Column Z — _ID
+    if (!idStr || isNaN(Number(idStr))) continue; // skip rows without valid _ID
+
+    results.push({
+      _id:           Number(idStr),
+      numero:        r[0] ? Number(r[0]) : null,
+      proyecto:      r[1] ?? "",
+      driver:        r[2] || null,
+      planta:        r[3] || null,
+      linea:         r[4] || null,
+      tipo:          r[5] || null,
+      clasificacion: r[6] || null,
+      origen:        r[7] || null,
+      prioridad:     r[8] || "MEDIA",
+      criterio:      r[9] || null,
+      detalle:       r[10] || null,
+      activo:        r[11]?.toUpperCase() === "SI",
+      asignado:      r[12] || null,
+      inversionEst:  r[13] || null,
+      nroConsuman:   r[14] || null,
+      fechaInicio:   parseDate(r[15]),
+      avance:        r[16] ? Number(r[16]) : null,
+      estado:        r[17] || "NO_INICIADO",
+      fechaFin:      parseDate(r[18]),
+      comentario:    r[19] || null,
+      gerencia:      parseBool(r[20]),
+      im:            parseBool(r[21]),
+      repasarCon:    r[22] || null,
+      defGcia:       r[23] || null,
+      definicionIM:  r[24] || null,
+    });
+  }
+  return results;
+}
