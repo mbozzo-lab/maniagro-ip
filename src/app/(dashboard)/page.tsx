@@ -187,7 +187,12 @@ export default async function DashboardPage() {
         <div className="rounded-xl border border-gray-200 bg-white p-5 flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-gray-700">Próximos vencimientos</h3>
-            <span className="text-xs text-gray-400">próximos 15 días</span>
+            <a
+              href="/solicitudes?vencimiento=15dias"
+              className="text-xs text-brand-green hover:underline font-medium"
+            >
+              Ver todos →
+            </a>
           </div>
           {vencimientos.length === 0 ? (
             <p className="text-sm text-gray-400 py-4 text-center">No hay vencimientos próximos</p>
@@ -203,7 +208,7 @@ export default async function DashboardPage() {
                 return (
                   <li key={s.id}>
                     <a
-                      href={`/solicitudes/${s.id}`}
+                      href="/solicitudes?vencimiento=15dias"
                       className="flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 hover:bg-gray-50 transition-colors border border-gray-100"
                     >
                       <span className="text-sm text-gray-800 truncate flex-1">{s.proyecto}</span>
@@ -248,12 +253,14 @@ export default async function DashboardPage() {
                     </div>
                     <span className="text-xs text-gray-400 w-8 text-right">{count}×</span>
                   </div>
-                  <span
-                    className="text-xs font-medium px-2 py-0.5 rounded-full capitalize w-28 text-center truncate"
+                  <a
+                    href={`/solicitudes?keyword=${encodeURIComponent(word)}`}
+                    className="text-xs font-medium px-2 py-0.5 rounded-full capitalize w-28 text-center truncate hover:opacity-80 transition-opacity"
                     style={{ background: `${BAR_COLORS[i]}20`, color: BAR_COLORS[i] }}
+                    title={`Ver proyectos con "${word}"`}
                   >
                     {word}
-                  </span>
+                  </a>
                 </li>
               ))}
             </ul>

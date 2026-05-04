@@ -161,6 +161,44 @@ export async function syncSolicitudToSheet(solicitud: Solicitud): Promise<void> 
   }
 }
 
+// ─── Classification criteria (CLASIF sheet) ──────────────────────────────────
+export type ClassificationCriteria = {
+  sigla: string;
+  descripcion: string;
+  abarca: string;
+  solicitantes: string;
+};
+
+export async function getClassificationCriteria(): Promise<ClassificationCriteria[]> {
+  const auth = getAuth();
+  if (!auth) return [];
+
+  const sheets = google.sheets({ version: "v4", auth });
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: SPREADSHEET_ID!,
+    range: "CLASIF!A1:D60",
+  });
+
+  const rows = res.data.values ?? [];
+  if (rows.length === 0) return [];
+
+  // Find the header row (first cell = "Sigla", case-insensitive) and start data below it.
+  const headerIdx = rows.findIndex(
+    (row) => row[0]?.toString().trim().toLowerCase() === "sigla",
+  );
+  const dataStart = headerIdx >= 0 ? headerIdx + 1 : 0;
+
+  return rows
+    .slice(dataStart)
+    .filter((row) => row[0]?.toString().trim())
+    .map((row) => ({
+      sigla:        row[0]?.toString().trim() ?? "",
+      descripcion:  row[1]?.toString().trim() ?? "",
+      abarca:       row[2]?.toString().trim() ?? "",
+      solicitantes: row[3]?.toString().trim() ?? "",
+    }));
+}
+
 // ─── Delete ───────────────────────────────────────────────────────────────────
 export async function deleteSolicitudFromSheet(solicitudId: number): Promise<void> {
   const auth = getAuth();
