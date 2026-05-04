@@ -1,4 +1,5 @@
 import { auth, signOut } from "@/lib/auth";
+import SyncSheetButton from "@/components/SyncSheetButton";
 
 export default async function Topbar({ title }: { title: string }) {
   const session = await auth();
@@ -9,6 +10,10 @@ export default async function Topbar({ title }: { title: string }) {
       <h1 className="text-sm font-semibold text-gray-800">{title}</h1>
 
       <div className="flex items-center gap-3">
+        <SyncSheetButton />
+
+        <div className="w-px h-5 bg-gray-200" />
+
         {user?.image ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
