@@ -1,18 +1,39 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import DashboardCharts from "@/components/DashboardCharts";
+import DashboardFiltroResponsable from "@/components/DashboardFiltroResponsable";
 import type { Estado } from "@/generated/prisma/client";
 
-async function getMetrics() {
-  const [total, noIniciado, enProceso, retrasado, enRevision, finalizado, anulado] = await Promise.all([
-    prisma.solicitud.count(),
-    prisma.solicitud.count({ where: { estado: "NO_INICIADO" } }),
-    prisma.solicitud.count({ where: { estado: "EN_PROCESO" } }),
-    prisma.solicitud.count({ where: { estado: "RETRASADO" } }),
-    prisma.solicitud.count({ where: { estado: "EN_REVISION" } }),
-    prisma.solicitud.count({ where: { estado: "FINALIZADO" } }),
-    prisma.solicitud.count({ where: { estado: "ANULADO" } }),
-  ]);
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function asignadoWhere(responsable?: string) {
+  return responsable ? { asignado: responsable } : {};
+}
+
+// ─── Data fetchers (all accept an optional responsable filter) ────────────────
+
+async function getResponsables() {
+  const rows = await prisma.solicitud.findMany({
+    select: { asignado: true },
+    distinct: ["asignado"],
+    where: { asignado: { not: null } },
+    orderBy: { asignado: "asc" },
+  });
+  return rows.map((r) => r.asignado!).filter(Boolean);
+}
+
+async function getMetrics(responsable?: string) {
+  const base = asignadoWhere(responsable);
+  const [total, noIniciado, enProceso, retrasado, enRevision, finalizado, anulado] =
+    await Promise.all([
+      prisma.solicitud.count({ where: { ...base } }),
+      prisma.solicitud.count({ where: { ...base, estado: "NO_INICIADO" } }),
+      prisma.solicitud.count({ where: { ...base, estado: "EN_PROCESO" } }),
+      prisma.solicitud.count({ where: { ...base, estado: "RETRASADO" } }),
+      prisma.solicitud.count({ where: { ...base, estado: "EN_REVISION" } }),
+      prisma.solicitud.count({ where: { ...base, estado: "FINALIZADO" } }),
+      prisma.solicitud.count({ where: { ...base, estado: "ANULADO" } }),
+    ]);
   return { total, noIniciado, enProceso, retrasado, enRevision, finalizado, anulado };
 }
 
@@ -29,9 +50,10 @@ const STOPWORDS = new Set([
   "del","las","los","unos","unas","ser","sido","está","están","estaba",
 ]);
 
-async function getBottleneckWords() {
+async function getBottleneckWords(responsable?: string) {
   const rows = await prisma.solicitud.findMany({
     select: { detalle: true, comentario: true },
+    where: asignadoWhere(responsable),
   });
 
   const freq: Record<string, number> = {};
@@ -55,7 +77,7 @@ async function getBottleneckWords() {
     .map(([word, count]) => ({ word, count }));
 }
 
-async function getProximosVencimientos() {
+async function getProximosVencimientos(responsable?: string) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const in15 = new Date(today);
@@ -63,6 +85,7 @@ async function getProximosVencimientos() {
 
   return prisma.solicitud.findMany({
     where: {
+      ...asignadoWhere(responsable),
       fechaFin: { gte: today, lte: in15 },
       estado: { notIn: ["ANULADO", "FINALIZADO"] as Estado[] },
     },
@@ -71,9 +94,10 @@ async function getProximosVencimientos() {
   });
 }
 
-async function getChartData() {
+async function getChartData(responsable?: string) {
   const all = await prisma.solicitud.findMany({
     select: { estado: true, prioridad: true, asignado: true },
+    where: asignadoWhere(responsable),
   });
 
   const estadoMap: Record<string, { label: string; color: string }> = {
@@ -113,6 +137,8 @@ async function getChartData() {
   return { estadoData, prioridadData, responsableData };
 }
 
+// ─── Static config ────────────────────────────────────────────────────────────
+
 const cards = [
   { label: "Total",       key: "total",      color: "bg-blue-50 text-blue-700" },
   { label: "No iniciado", key: "noIniciado",  color: "bg-gray-100 text-gray-600" },
@@ -143,28 +169,45 @@ const estadoLabel: Record<string, string> = {
 
 const BAR_COLORS = ["#166534","#16a34a","#4ade80","#86efac","#bbf7d0"];
 
-export default async function DashboardPage() {
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ responsable?: string }>;
+}) {
+  const { responsable } = await searchParams;
   const session = await auth();
-  const [metrics, chartData, bottleneck, vencimientos] = await Promise.all([
-    getMetrics(),
-    getChartData(),
-    getBottleneckWords(),
-    getProximosVencimientos(),
+
+  const [metrics, chartData, bottleneck, vencimientos, responsables] = await Promise.all([
+    getMetrics(responsable),
+    getChartData(responsable),
+    getBottleneckWords(responsable),
+    getProximosVencimientos(responsable),
+    getResponsables(),
   ]);
 
   const maxCount = bottleneck[0]?.count ?? 1;
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h2 className="text-lg font-semibold text-gray-800">
-          Bienvenido, {session?.user.name?.split(" ")[0]}
-        </h2>
-        <p className="text-sm text-gray-500">
-          Resumen general de solicitudes de Ingeniería de Procesos
-        </p>
+
+      {/* Header + responsable filter */}
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-800">
+            Bienvenido, {session?.user.name?.split(" ")[0]}
+          </h2>
+          <p className="text-sm text-gray-500">
+            {responsable
+              ? <>Mostrando datos de <span className="font-medium text-gray-700">{responsable}</span></>
+              : "Resumen general de solicitudes de Ingeniería de Procesos"}
+          </p>
+        </div>
+        <DashboardFiltroResponsable responsables={responsables} />
       </div>
 
+      {/* Metric cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
         {cards.map(({ label, key, color }) => (
           <div key={key} className={`rounded-xl p-4 flex flex-col gap-1 ${color}`}>
@@ -174,6 +217,7 @@ export default async function DashboardPage() {
         ))}
       </div>
 
+      {/* Charts */}
       <DashboardCharts
         estadoData={chartData.estadoData}
         prioridadData={chartData.prioridadData}
@@ -187,10 +231,7 @@ export default async function DashboardPage() {
         <div className="rounded-xl border border-gray-200 bg-white p-5 flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-gray-700">Próximos vencimientos</h3>
-            <a
-              href="/solicitudes?vencimiento=15dias"
-              className="text-xs text-brand-green hover:underline font-medium"
-            >
+            <a href="/solicitudes?vencimiento=15dias" className="text-xs text-brand-green hover:underline font-medium">
               Ver todos →
             </a>
           </div>
@@ -202,9 +243,11 @@ export default async function DashboardPage() {
                 const date = new Date(s.fechaFin!);
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
-                const diffMs = date.getTime() - today.getTime();
-                const diffDays = Math.round(diffMs / 86_400_000);
-                const urgentCls = diffDays <= 3 ? "text-red-600 font-semibold" : diffDays <= 7 ? "text-orange-500 font-medium" : "text-gray-500";
+                const diffDays = Math.round((date.getTime() - today.getTime()) / 86_400_000);
+                const urgentCls =
+                  diffDays <= 3 ? "text-red-600 font-semibold" :
+                  diffDays <= 7 ? "text-orange-500 font-medium" :
+                  "text-gray-500";
                 return (
                   <li key={s.id}>
                     <a
@@ -228,7 +271,7 @@ export default async function DashboardPage() {
           )}
         </div>
 
-        {/* Analizador de cuellos de botella */}
+        {/* Palabras clave recurrentes */}
         <div className="rounded-xl border border-gray-200 bg-white p-5 flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-gray-700">Palabras clave recurrentes</h3>

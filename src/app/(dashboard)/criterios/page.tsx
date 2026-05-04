@@ -1,76 +1,88 @@
 import { getClassificationCriteria } from "@/lib/sheets";
 import type { ClassificationCriteria } from "@/lib/sheets";
 
-// Color palette per sigla — falls back to green for unknown siglas.
-const SIGLA_STYLE: Record<string, { bg: string; text: string; border: string }> = {
-  ST:  { bg: "bg-emerald-50",  text: "text-emerald-700",  border: "border-emerald-200" },
-  SNP: { bg: "bg-blue-50",     text: "text-blue-700",     border: "border-blue-200"    },
+const SIGLA_COLORS: Record<string, { pill: string; dot: string }> = {
+  ST:  { pill: "bg-emerald-100 text-emerald-700 border-emerald-200", dot: "bg-emerald-500" },
+  SNP: { pill: "bg-blue-100 text-blue-700 border-blue-200",          dot: "bg-blue-500"    },
 };
 
-const DEFAULT_STYLE = { bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-200" };
+const DEFAULT_COLORS = {
+  pill: "bg-purple-100 text-purple-700 border-purple-200",
+  dot:  "bg-purple-500",
+};
 
-function siglaStyle(sigla: string) {
-  return SIGLA_STYLE[sigla.toUpperCase()] ?? DEFAULT_STYLE;
-}
-
-function SolicitantesTag({ name }: { name: string }) {
-  return (
-    <span className="inline-block bg-gray-100 text-gray-600 text-xs font-medium px-2 py-0.5 rounded-full">
-      {name.trim()}
-    </span>
-  );
+function siglaColors(sigla: string) {
+  return SIGLA_COLORS[sigla.toUpperCase()] ?? DEFAULT_COLORS;
 }
 
 function CriterioCard({ item }: { item: ClassificationCriteria }) {
-  const { bg, text, border } = siglaStyle(item.sigla);
+  const { pill } = siglaColors(item.sigla);
   const solicitantes = item.solicitantes
     .split(/[,;]/)
     .map((s) => s.trim())
     .filter(Boolean);
 
   return (
-    <div className={`flex flex-col gap-4 rounded-2xl border ${border} ${bg} p-6 transition-shadow hover:shadow-md`}>
-      {/* Sigla badge + title */}
-      <div className="flex items-start gap-4">
-        <div
-          className={`shrink-0 w-14 h-14 rounded-xl flex items-center justify-center text-xl font-extrabold tracking-tight ${text} bg-white shadow-sm border ${border}`}
-        >
+    <div className="flex flex-col gap-5 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm hover:shadow-md transition-shadow">
+
+      {/* Sigla badge */}
+      <div>
+        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest border ${pill}`}>
           {item.sigla}
-        </div>
-        <div className="flex flex-col gap-0.5 pt-1">
-          <p className={`text-base font-semibold ${text}`}>{item.descripcion}</p>
-          <p className="text-xs text-gray-400 uppercase tracking-wide font-medium">{item.sigla}</p>
-        </div>
+        </span>
       </div>
+
+      {/* Descripción */}
+      <p className="text-base font-semibold text-gray-800 leading-snug break-words whitespace-normal">
+        {item.descripcion}
+      </p>
+
+      {/* Divider */}
+      <div className="border-t border-gray-100" />
 
       {/* Abarca */}
       {item.abarca && (
-        <div className="flex flex-col gap-1">
-          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Abarca</span>
-          <p className="text-sm text-gray-700 leading-relaxed">{item.abarca}</p>
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+            Abarca
+          </span>
+          <p className="text-sm text-gray-600 leading-relaxed break-words whitespace-normal">
+            {item.abarca}
+          </p>
         </div>
       )}
 
       {/* Solicitantes */}
       {solicitantes.length > 0 && (
-        <div className="flex flex-col gap-1.5">
-          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Solicitantes</span>
+        <div className="flex flex-col gap-2">
+          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+            Solicitantes
+          </span>
           <div className="flex flex-wrap gap-1.5">
             {solicitantes.map((s) => (
-              <SolicitantesTag key={s} name={s} />
+              <span
+                key={s}
+                className="inline-block bg-gray-100 text-gray-600 text-xs font-medium px-2.5 py-0.5 rounded-full whitespace-nowrap"
+              >
+                {s}
+              </span>
             ))}
           </div>
         </div>
       )}
+
     </div>
   );
 }
 
 export default async function CriteriosPage() {
-  const criterios = await getClassificationCriteria().catch(() => [] as ClassificationCriteria[]);
+  const criterios = await getClassificationCriteria().catch(
+    () => [] as ClassificationCriteria[],
+  );
 
   return (
-    <div className="flex flex-col gap-6 max-w-5xl">
+    <div className="flex flex-col gap-6">
+
       {/* Header */}
       <div>
         <h2 className="text-lg font-semibold text-gray-800">Criterios de Clasificación</h2>
@@ -84,16 +96,19 @@ export default async function CriteriosPage() {
           <p className="text-gray-400 text-sm">
             No se pudieron cargar los criterios desde Google Sheets.
             <br />
-            Verificá que la hoja <span className="font-mono font-medium">CLASIF</span> exista y que las credenciales estén configuradas.
+            Verificá que la hoja{" "}
+            <span className="font-mono font-medium text-gray-600">CLASIF</span>{" "}
+            exista y que las credenciales estén configuradas.
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {criterios.map((item) => (
             <CriterioCard key={item.sigla} item={item} />
           ))}
         </div>
       )}
+
     </div>
   );
 }
