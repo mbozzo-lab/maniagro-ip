@@ -161,42 +161,66 @@ export async function syncSolicitudToSheet(solicitud: Solicitud): Promise<void> 
   }
 }
 
-// ─── Classification criteria (CLASIF sheet) ──────────────────────────────────
-export type ClassificationCriteria = {
-  sigla: string;
-  descripcion: string;
-  abarca: string;
-  solicitantes: string;
+// ─── CLASIF sheet — multi-section reader ─────────────────────────────────────
+// Reads the entire CLASIF tab and splits it into sections separated by blank
+// rows.  Each section becomes one table: its first non-blank row is the header,
+// the rest are data rows.  Single-row blocks (title-only lines) are attached as
+// the titulo of the next data section.
+
+export type CriterioSection = {
+  titulo:  string;     // section title (may be empty)
+  headers: string[];   // first row of the table
+  rows:    string[][];  // data rows (first col = label, rest = values)
 };
 
-export async function getClassificationCriteria(): Promise<ClassificationCriteria[]> {
+export async function getCriteriosData(): Promise<CriterioSection[]> {
   const auth = getAuth();
   if (!auth) return [];
 
   const sheets = google.sheets({ version: "v4", auth });
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID!,
-    range: "CLASIF!A1:D60",
+    range: "CLASIF!A1:G150",
   });
 
-  const rows = res.data.values ?? [];
-  if (rows.length === 0) return [];
+  const raw = (res.data.values ?? []) as unknown[][];
 
-  // Find the header row (first cell = "Sigla", case-insensitive) and start data below it.
-  const headerIdx = rows.findIndex(
-    (row) => row[0]?.toString().trim().toLowerCase() === "sigla",
+  // Normalise every cell to a trimmed string.
+  const all: string[][] = raw.map((row) =>
+    (row as unknown[]).map((c) => String(c ?? "").trim()),
   );
-  const dataStart = headerIdx >= 0 ? headerIdx + 1 : 0;
 
-  return rows
-    .slice(dataStart)
-    .filter((row) => row[0]?.toString().trim())
-    .map((row) => ({
-      sigla:        row[0]?.toString().trim() ?? "",
-      descripcion:  row[1]?.toString().trim() ?? "",
-      abarca:       row[2]?.toString().trim() ?? "",
-      solicitantes: row[3]?.toString().trim() ?? "",
-    }));
+  // Split into blocks at blank rows.
+  const blocks: string[][][] = [];
+  let cur: string[][] = [];
+  for (const row of all) {
+    if (row.every((c) => !c)) {
+      if (cur.length) { blocks.push(cur); cur = []; }
+    } else {
+      cur.push(row);
+    }
+  }
+  if (cur.length) blocks.push(cur);
+
+  // Pair single-row "title" blocks with the following data block.
+  const sections: CriterioSection[] = [];
+  let pendingTitle = "";
+
+  for (const block of blocks) {
+    const nonEmpty = block[0]?.filter(Boolean) ?? [];
+    const isTitleOnly = block.length === 1 && nonEmpty.length <= 2;
+
+    if (isTitleOnly) {
+      pendingTitle = nonEmpty[0] ?? "";
+    } else {
+      const headers = block[0] ?? [];
+      const rows    = block.slice(1).filter((r) => r.some(Boolean));
+      sections.push({ titulo: pendingTitle, headers, rows });
+      pendingTitle = "";
+    }
+  }
+
+  return sections;
 }
 
 // ─── Delete ───────────────────────────────────────────────────────────────────

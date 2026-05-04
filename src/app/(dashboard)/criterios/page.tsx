@@ -1,87 +1,102 @@
-import { getClassificationCriteria } from "@/lib/sheets";
-import type { ClassificationCriteria } from "@/lib/sheets";
+import { getCriteriosData } from "@/lib/sheets";
+import type { CriterioSection } from "@/lib/sheets";
 
-const SIGLA_COLORS: Record<string, { pill: string; dot: string }> = {
-  ST:  { pill: "bg-emerald-100 text-emerald-700 border-emerald-200", dot: "bg-emerald-500" },
-  SNP: { pill: "bg-blue-100 text-blue-700 border-blue-200",          dot: "bg-blue-500"    },
-};
+// Fallback titles shown when the sheet doesn't have an explicit title row.
+const FALLBACK_TITLES = [
+  "Clasificación General de Proyectos (ST / SNP)",
+  "Matriz de Proyectos: Solicitudes de Trabajo (ST)",
+  "Matriz de Proyectos: Solicitudes de Nuevos Productos (SNP)",
+];
 
-const DEFAULT_COLORS = {
-  pill: "bg-purple-100 text-purple-700 border-purple-200",
-  dot:  "bg-purple-500",
-};
+// ─── Styled matrix table ──────────────────────────────────────────────────────
 
-function siglaColors(sigla: string) {
-  return SIGLA_COLORS[sigla.toUpperCase()] ?? DEFAULT_COLORS;
-}
-
-function CriterioCard({ item }: { item: ClassificationCriteria }) {
-  const { pill } = siglaColors(item.sigla);
-  const solicitantes = item.solicitantes
-    .split(/[,;]/)
-    .map((s) => s.trim())
-    .filter(Boolean);
+function MatrixTable({ section, index }: { section: CriterioSection; index: number }) {
+  const title   = section.titulo || FALLBACK_TITLES[index] || `Tabla ${index + 1}`;
+  // Number of value columns = headers minus the first (label) column,
+  // filtered to skip trailing empty header cells.
+  const valueHeaders = section.headers.slice(1).filter(Boolean);
+  const colCount     = valueHeaders.length;
 
   return (
-    <div className="flex flex-col gap-5 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm hover:shadow-md transition-shadow">
-
-      {/* Sigla badge */}
-      <div>
-        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest border ${pill}`}>
-          {item.sigla}
-        </span>
+    <div className="flex flex-col gap-3">
+      {/* Section title */}
+      <div className="flex items-center gap-3">
+        <div className="w-1 h-5 rounded-full bg-brand-green shrink-0" />
+        <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide">
+          {title}
+        </h3>
       </div>
 
-      {/* Descripción */}
-      <p className="text-base font-semibold text-gray-800 leading-snug break-words whitespace-normal">
-        {item.descripcion}
-      </p>
-
-      {/* Divider */}
-      <div className="border-t border-gray-100" />
-
-      {/* Abarca */}
-      {item.abarca && (
-        <div className="flex flex-col gap-1.5">
-          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-            Abarca
-          </span>
-          <p className="text-sm text-gray-600 leading-relaxed break-words whitespace-normal">
-            {item.abarca}
-          </p>
-        </div>
-      )}
-
-      {/* Solicitantes */}
-      {solicitantes.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-            Solicitantes
-          </span>
-          <div className="flex flex-wrap gap-1.5">
-            {solicitantes.map((s) => (
-              <span
-                key={s}
-                className="inline-block bg-gray-100 text-gray-600 text-xs font-medium px-2.5 py-0.5 rounded-full whitespace-nowrap"
+      {/* Scrollable table wrapper */}
+      <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
+        <table className="w-full text-sm border-collapse" style={{ minWidth: colCount > 2 ? 640 : 480 }}>
+          <thead>
+            <tr>
+              {/* First header cell: criteria / label column */}
+              <th
+                className="px-4 py-3 text-left text-xs font-bold text-white border border-gray-300 align-bottom"
+                style={{ backgroundColor: "#374151", minWidth: 160 }}
               >
-                {s}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
+                {section.headers[0] || "Criterio"}
+              </th>
 
+              {/* Value column headers: dark green */}
+              {valueHeaders.map((h, i) => (
+                <th
+                  key={i}
+                  className="px-4 py-3 text-left text-xs font-bold text-white border border-gray-300 align-bottom"
+                  style={{ backgroundColor: "#166534", minWidth: 200 }}
+                >
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+
+          <tbody>
+            {section.rows.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={colCount + 1}
+                  className="px-4 py-6 text-center text-gray-400 border border-gray-200"
+                >
+                  Sin datos
+                </td>
+              </tr>
+            ) : (
+              section.rows.map((row, ri) => (
+                <tr key={ri} className={ri % 2 === 0 ? "bg-white" : "bg-gray-50/60"}>
+                  {/* First cell: criteria label */}
+                  <td className="px-4 py-3 font-semibold text-gray-800 bg-gray-100 border border-gray-200 break-words whitespace-normal align-top">
+                    {row[0] ?? ""}
+                  </td>
+
+                  {/* Value cells */}
+                  {Array.from({ length: colCount }, (_, ci) => (
+                    <td
+                      key={ci}
+                      className="px-4 py-3 text-gray-600 border border-gray-200 break-words whitespace-normal align-top leading-relaxed"
+                    >
+                      {row[ci + 1] ?? ""}
+                    </td>
+                  ))}
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
 
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export default async function CriteriosPage() {
-  const criterios = await getClassificationCriteria().catch(
-    () => [] as ClassificationCriteria[],
-  );
+  const sections = await getCriteriosData().catch(() => [] as CriterioSection[]);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8 max-w-6xl">
 
       {/* Header */}
       <div>
@@ -91,7 +106,7 @@ export default async function CriteriosPage() {
         </p>
       </div>
 
-      {criterios.length === 0 ? (
+      {sections.length === 0 ? (
         <div className="rounded-xl border border-gray-200 bg-white p-10 text-center">
           <p className="text-gray-400 text-sm">
             No se pudieron cargar los criterios desde Google Sheets.
@@ -102,11 +117,9 @@ export default async function CriteriosPage() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {criterios.map((item) => (
-            <CriterioCard key={item.sigla} item={item} />
-          ))}
-        </div>
+        sections.map((section, i) => (
+          <MatrixTable key={i} section={section} index={i} />
+        ))
       )}
 
     </div>
