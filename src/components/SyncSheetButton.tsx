@@ -4,21 +4,32 @@ import { useState } from "react";
 
 export default function SyncSheetButton() {
   const [status, setStatus] = useState<"idle" | "loading" | "ok" | "error">("idle");
-  const [result, setResult] = useState<{ updated: number; skipped: number } | null>(null);
+  const [result, setResult] = useState("");
 
   async function handleSync() {
     setStatus("loading");
-    setResult(null);
+    setResult("");
     try {
-      const res = await fetch("/api/sync-from-sheet");
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Error");
-      setResult({ updated: data.updated, skipped: data.skipped });
+      const importRes = await fetch("/api/import-missing");
+      const importData = await importRes.json();
+
+      const syncRes = await fetch("/api/sync-from-sheet");
+      const syncData = await syncRes.json();
+
+      const actRes = await fetch("/api/sync-actividades");
+      const actData = await actRes.json();
+
+      const parts: string[] = [];
+      if (importData.imported > 0) parts.push(`${importData.imported} nuevas`);
+      if (syncData.updated > 0) parts.push(`${syncData.updated} actualizadas`);
+      if (actData.created > 0 || actData.updated > 0) parts.push(`${(actData.created || 0) + (actData.updated || 0)} actividades`);
+
+      setResult(parts.length > 0 ? parts.join(", ") : "Todo al día");
       setStatus("ok");
     } catch {
       setStatus("error");
     } finally {
-      setTimeout(() => setStatus("idle"), 4000);
+      setTimeout(() => setStatus("idle"), 5000);
     }
   }
 
@@ -49,15 +60,11 @@ export default function SyncSheetButton() {
         )}
       </button>
 
-      {status === "ok" && result && (
-        <span className="text-xs text-green-600 font-medium">
-          ✓ {result.updated} actualizadas{result.skipped > 0 ? `, ${result.skipped} omitidas` : ""}
-        </span>
+      {status === "ok" && (
+        <span className="text-xs text-green-600 font-medium">✓ {result}</span>
       )}
       {status === "error" && (
-        <span className="text-xs text-red-500 font-medium">
-          ✗ Error al sincronizar
-        </span>
+        <span className="text-xs text-red-500 font-medium">✗ Error al sincronizar</span>
       )}
     </div>
   );
