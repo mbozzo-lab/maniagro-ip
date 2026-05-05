@@ -358,7 +358,12 @@ export async function readSolicitudesFromSheet(): Promise<SheetSolicitud[]> {
       inversionEst:  r[13] || null,
       nroConsuman:   r[14] || null,
       fechaInicio:   parseDate(r[15]),
-      avance:        r[16] ? Number(r[16]) : null,
+      avance: (() => {
+        if (!r[16]) return null;
+        const raw = Number(String(r[16]).replace("%", "").replace(",", ".").trim());
+        if (isNaN(raw)) return null;
+        return raw <= 1 && raw > 0 ? Math.round(raw * 100) : Math.round(raw);
+      })(),
       estado:        r[17] || "NO_INICIADO",
       fechaFin:      parseDate(r[18]),
       comentario:    r[19] || null,
@@ -367,6 +372,68 @@ export async function readSolicitudesFromSheet(): Promise<SheetSolicitud[]> {
       repasarCon:    r[22] || null,
       defGcia:       r[23] || null,
       definicionIM:  r[24] || null,
+    });
+  }
+  return results;
+}
+
+// ─── ACT sheet reader ─────────────────────────────────────────────────────────
+export type SheetActividad = {
+  proyectoOrigen: string;
+  detalle:        string;
+  linea:          string | null;
+  responsable:    string;
+  estado:         string;
+  plazo:          string | null;
+  prioridad:      number | null;
+  comentario:     string | null;
+  revisar:        boolean;
+  fecha:          Date | null;
+  sheetRow:       number;
+};
+
+export async function readActividadesFromSheet(sheetName = "ACT FRANCISCO"): Promise<SheetActividad[]> {
+  const auth = getAuth();
+  if (!auth) return [];
+
+  const sheets = google.sheets({ version: "v4", auth });
+  const name = sheetName.includes(" ") ? `'${sheetName}'` : sheetName;
+
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: SPREADSHEET_ID!,
+    range: `${name}!A1:J500`,
+  });
+
+  const rows = (res.data.values ?? []) as string[][];
+  if (rows.length < 2) return [];
+
+  const parseDate = (val: string): Date | null => {
+    if (!val) return null;
+    const parts = val.split("/");
+    if (parts.length !== 3) return null;
+    const [d, m, y] = parts;
+    const date = new Date(Number(y), Number(m) - 1, Number(d));
+    return isNaN(date.getTime()) ? null : date;
+  };
+
+  const results: SheetActividad[] = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    const detalle = r[1]?.trim();
+    if (!detalle) continue;
+
+    results.push({
+      proyectoOrigen: r[0]?.trim() || "",
+      detalle,
+      linea:          r[2]?.trim() || null,
+      responsable:    r[3]?.trim() || "Francisco",
+      estado:         r[4]?.trim() || "No iniciado",
+      plazo:          r[5]?.trim() || null,
+      prioridad:      r[6] ? Number(r[6]) : null,
+      comentario:     r[7]?.trim() || null,
+      revisar:        r[8]?.trim()?.toUpperCase() === "SI",
+      fecha:          parseDate(r[9]?.trim() || ""),
+      sheetRow:       i + 1,
     });
   }
   return results;
