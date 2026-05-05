@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { syncFromSheetHandler } from "@/features/solicitudes/api/handlers";
+import { syncToSheetHandler } from "@/features/solicitudes/api/handlers";
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
@@ -13,10 +13,10 @@ export async function GET(request: Request) {
   }
 
   try {
-    const result = await syncFromSheetHandler();
+    const result = await syncToSheetHandler();
     return NextResponse.json(result);
   } catch (err) {
-    console.error("sync-from-sheet error:", err);
+    console.error("sync-to-sheet error:", err);
     return NextResponse.json({ error: "Sync failed" }, { status: 500 });
   }
 }
