@@ -157,6 +157,7 @@ model Actividad {
   estado      Estado     @default(NO_INICIADO)
   plazo       String?
   prioridad   Int?
+  orden       Int?
   comentario  String?
   revisar     Boolean    @default(false)
   fecha       DateTime?

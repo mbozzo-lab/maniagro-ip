@@ -386,6 +386,7 @@ export type SheetActividad = {
   estado:         string;
   plazo:          string | null;
   prioridad:      number | null;
+  orden:          number | null;
   comentario:     string | null;
   revisar:        boolean;
   fecha:          Date | null;
@@ -401,7 +402,7 @@ export async function readActividadesFromSheet(sheetName = "ACT FRANCISCO"): Pro
 
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID!,
-    range: `${name}!A1:J500`,
+    range: `${name}!A1:K500`,
   });
 
   const rows = (res.data.values ?? []) as string[][];
@@ -430,6 +431,7 @@ export async function readActividadesFromSheet(sheetName = "ACT FRANCISCO"): Pro
       estado:         r[4]?.trim() || "No iniciado",
       plazo:          r[5]?.trim() || null,
       prioridad:      r[6] ? Number(r[6]) : null,
+      orden:          r[10] ? Number(r[10]) : null,
       comentario:     r[7]?.trim() || null,
       revisar:        r[8]?.trim()?.toUpperCase() === "SI",
       fecha:          parseDate(r[9]?.trim() || ""),

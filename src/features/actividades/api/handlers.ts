@@ -2,6 +2,20 @@ import { prisma } from "@/lib/prisma";
 import { readActividadesFromSheet } from "@/lib/sheets";
 import { ESTADO_MAP } from "@/features/solicitudes/domain/validators";
 
+function normalizeProjectName(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[áàäâ]/g, "a")
+    .replace(/[éèëê]/g, "e")
+    .replace(/[íìïî]/g, "i")
+    .replace(/[óòöô]/g, "o")
+    .replace(/[úùüû]/g, "u")
+    .replace(/[ñ]/g, "n")
+    .replace(/\s+/g, " ")
+    .replace(/[^\w\s]/g, "");
+}
+
 export async function syncActividadesHandler(): Promise<{
   ok: boolean;
   created: number;
@@ -12,9 +26,19 @@ export async function syncActividadesHandler(): Promise<{
   const rows = await readActividadesFromSheet();
 
   const solicitudes = await prisma.solicitud.findMany({ select: { id: true, proyecto: true } });
-  const proyectoToId = new Map<string, number>();
+
+  const proyectoMap        = new Map<string, number>();
+  const proyectoMapPartial = new Map<string, number[]>();
+
   for (const s of solicitudes) {
-    proyectoToId.set(s.proyecto.trim().toLowerCase(), s.id);
+    const normalized = normalizeProjectName(s.proyecto);
+    proyectoMap.set(normalized, s.id);
+
+    const words = normalized.split(" ").filter((w) => w.length > 3);
+    for (const word of words) {
+      if (!proyectoMapPartial.has(word)) proyectoMapPartial.set(word, []);
+      proyectoMapPartial.get(word)!.push(s.id);
+    }
   }
 
   let created = 0;
@@ -25,15 +49,37 @@ export async function syncActividadesHandler(): Promise<{
     const estado = ESTADO_MAP[row.estado] ?? ESTADO_MAP[row.estado.toLowerCase()] ?? "NO_INICIADO";
 
     let solicitudId: number | null = null;
-    const proyOrigen = row.proyectoOrigen.toLowerCase();
+    const proyOrigen = normalizeProjectName(row.proyectoOrigen);
+
     if (proyOrigen) {
-      solicitudId = proyectoToId.get(proyOrigen) ?? null;
+      // 1. Exact match (normalized)
+      solicitudId = proyectoMap.get(proyOrigen) ?? null;
+
+      // 2. Partial match (one name contains the other)
       if (!solicitudId) {
-        for (const [name, id] of proyectoToId) {
+        for (const [name, id] of proyectoMap) {
           if (name.includes(proyOrigen) || proyOrigen.includes(name)) {
             solicitudId = id;
             break;
           }
+        }
+      }
+
+      // 3. Keyword match (project with most overlapping words wins)
+      if (!solicitudId) {
+        const words        = proyOrigen.split(" ").filter((w) => w.length > 3);
+        const candidateIds = new Map<number, number>();
+
+        for (const word of words) {
+          const ids = proyectoMapPartial.get(word);
+          if (ids) {
+            for (const id of ids) candidateIds.set(id, (candidateIds.get(id) ?? 0) + 1);
+          }
+        }
+
+        if (candidateIds.size > 0) {
+          const best = Array.from(candidateIds.entries()).sort((a, b) => b[1] - a[1])[0];
+          solicitudId = best[0];
         }
       }
     }
@@ -52,6 +98,7 @@ export async function syncActividadesHandler(): Promise<{
       estado,
       plazo:       row.plazo,
       prioridad:   row.prioridad,
+      orden:       row.orden,
       comentario:  row.comentario,
       revisar:     row.revisar,
       fecha:       row.fecha,

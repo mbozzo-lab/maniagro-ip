@@ -20,7 +20,7 @@ const BAR_ORDER = ["FINALIZADO", "EN_PROCESO", "EN_REVISION", "NO_INICIADO", "RE
 export default async function ActividadesPage() {
   const actividades = await prisma.actividad.findMany({
     include: { solicitud: { select: { id: true, proyecto: true, numero: true } } },
-    orderBy: [{ prioridad: "asc" }, { estado: "asc" }],
+    orderBy: [{ orden: "asc" }, { prioridad: "asc" }, { estado: "asc" }],
   });
 
   const total = actividades.length;
@@ -34,6 +34,16 @@ export default async function ActividadesPage() {
   const vinculadas           = actividades.filter((a) => a.solicitudId).length;
   const porcentajeFinalizado = total > 0 ? Math.round(((counts["FINALIZADO"] || 0) / total) * 100) : 0;
 
+  const hoy        = new Date();
+  const inicioMes  = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+  const inicioAnio = new Date(hoy.getFullYear(), 0, 1);
+  const finalizadasMes  = actividades.filter(
+    (a) => a.estado === "FINALIZADO" && a.fecha && new Date(a.fecha) >= inicioMes,
+  ).length;
+  const finalizadasAnio = actividades.filter(
+    (a) => a.estado === "FINALIZADO" && a.fecha && new Date(a.fecha) >= inicioAnio,
+  ).length;
+
   return (
     <div className="flex flex-col gap-6 max-w-7xl">
 
@@ -46,11 +56,11 @@ export default async function ActividadesPage() {
       </div>
 
       {/* Metric cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <div className="bg-white rounded-xl border border-slate-200 p-4">
           <p className="text-xs text-slate-500 mb-1">Completadas</p>
-          <p className="text-2xl font-semibold text-emerald-600">{porcentajeFinalizado}%</p>
-          <p className="text-xs text-slate-400 mt-1">{counts["FINALIZADO"] || 0} de {total}</p>
+          <p className="text-2xl font-semibold text-emerald-600">{counts["FINALIZADO"] || 0}</p>
+          <p className="text-xs text-slate-400 mt-1">{porcentajeFinalizado}% del total</p>
         </div>
         <div className="bg-white rounded-xl border border-slate-200 p-4">
           <p className="text-xs text-slate-500 mb-1">En proceso</p>
@@ -66,6 +76,16 @@ export default async function ActividadesPage() {
           <p className="text-xs text-slate-500 mb-1">Para revisar</p>
           <p className="text-2xl font-semibold text-yellow-500">{porRevisar}</p>
           <p className="text-xs text-slate-400 mt-1">{total > 0 ? Math.round((porRevisar / total) * 100) : 0}% del total</p>
+        </div>
+        <div className="bg-white rounded-xl border border-slate-200 p-4">
+          <p className="text-xs text-slate-500 mb-1">Este mes</p>
+          <p className="text-2xl font-semibold text-blue-600">{finalizadasMes}</p>
+          <p className="text-xs text-slate-400 mt-1">finalizadas</p>
+        </div>
+        <div className="bg-white rounded-xl border border-slate-200 p-4">
+          <p className="text-xs text-slate-500 mb-1">Este año</p>
+          <p className="text-2xl font-semibold text-purple-600">{finalizadasAnio}</p>
+          <p className="text-xs text-slate-400 mt-1">finalizadas</p>
         </div>
       </div>
 
@@ -113,10 +133,12 @@ export default async function ActividadesPage() {
         <table className="w-full text-sm border-collapse">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200">
+              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Orden</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Prio.</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Proyecto</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase" style={{ minWidth: 250 }}>Detalle</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Línea</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Plazo</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Estado</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Comentario</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Revisar</th>
@@ -126,8 +148,8 @@ export default async function ActividadesPage() {
           <tbody>
             {actividades.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-10 text-center text-slate-400">
-                  No hay actividades. Presioná &quot;Sincronizar desde Sheet&quot; para cargarlas.
+                <td colSpan={10} className="px-4 py-10 text-center text-slate-400">
+                  No hay actividades. Presioná &quot;Traer desde Sheet&quot; para cargarlas.
                 </td>
               </tr>
             ) : (
@@ -136,6 +158,11 @@ export default async function ActividadesPage() {
                 const prio = a.prioridad ? prioridadConfig[a.prioridad] : null;
                 return (
                   <tr key={a.id} className="border-t border-slate-100 hover:bg-slate-50/50">
+                    <td className="px-4 py-3">
+                      {a.orden != null
+                        ? <span className="text-slate-700 font-medium">{a.orden}</span>
+                        : <span className="text-slate-300">—</span>}
+                    </td>
                     <td className="px-4 py-3">
                       {prio
                         ? <span className={prio.color}>{prio.label}</span>
@@ -155,6 +182,7 @@ export default async function ActividadesPage() {
                     </td>
                     <td className="px-4 py-3 text-slate-700 break-words whitespace-normal max-w-md">{a.detalle}</td>
                     <td className="px-4 py-3 text-slate-500">{a.linea ?? "—"}</td>
+                    <td className="px-4 py-3 text-slate-500 text-sm whitespace-nowrap">{a.plazo ?? "—"}</td>
                     <td className="px-4 py-3">
                       <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium ${est.bg} ${est.text}`}>
                         {est.label}
