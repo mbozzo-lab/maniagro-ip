@@ -146,3 +146,21 @@ model CriterioClasificacion {
 
   @@unique([tipo, clasificacion])
 }
+
+model Actividad {
+  id          Int        @id @default(autoincrement())
+  solicitudId Int?
+  solicitud   Solicitud? @relation(fields: [solicitudId], references: [id])
+  detalle     String
+  linea       String?
+  responsable String
+  estado      Estado     @default(NO_INICIADO)
+  plazo       String?
+  prioridad   Int?
+  comentario  String?
+  revisar     Boolean    @default(false)
+  fecha       DateTime?
+  sheetRow    Int?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
