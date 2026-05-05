@@ -157,23 +157,23 @@ export default async function SolicitudesPage({ searchParams }: { searchParams: 
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-gray-800">Proyectos</h2>
-          <p className="text-sm text-gray-500">
+          <h2 className="text-lg font-semibold text-slate-800">Proyectos</h2>
+          <p className="text-sm text-slate-500">
             {solicitudes.length} proyecto{solicitudes.length !== 1 ? "s" : ""}
             {hasFilters ? " encontrados" : " registrados"}
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+          <div className="flex rounded-lg border border-slate-200 overflow-hidden">
             <a
               href="/solicitudes"
-              className={`px-3 py-1.5 text-xs font-medium transition-colors ${!isKanban ? "bg-brand-green text-white" : "text-gray-600 hover:bg-gray-50"}`}
+              className={`px-3 py-1.5 text-xs font-medium transition-colors ${!isKanban ? "bg-brand-green text-white" : "text-slate-600 hover:bg-slate-50"}`}
             >
               Tabla
             </a>
             <a
               href="/solicitudes?vista=kanban"
-              className={`px-3 py-1.5 text-xs font-medium transition-colors ${isKanban ? "bg-brand-green text-white" : "text-gray-600 hover:bg-gray-50"}`}
+              className={`px-3 py-1.5 text-xs font-medium transition-colors ${isKanban ? "bg-brand-green text-white" : "text-slate-600 hover:bg-slate-50"}`}
             >
               Kanban
             </a>

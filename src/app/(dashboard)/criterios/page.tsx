@@ -16,17 +16,17 @@ function MatrixTable({ section, index }: { section: CriterioSection; index: numb
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-3">
         <div className="w-1 h-5 rounded-full bg-brand-green shrink-0" />
-        <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide">
+        <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide">
           {title}
         </h3>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
+      <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
         <table className="w-full text-sm border-collapse" style={{ minWidth: colCount > 2 ? 640 : 480 }}>
           <thead>
             <tr>
               <th
-                className="px-4 py-3 text-left text-xs font-bold text-white border border-gray-300 align-bottom"
+                className="px-4 py-3 text-left text-xs font-bold text-white border border-slate-300 align-bottom"
                 style={{ backgroundColor: "#374151", minWidth: 160 }}
               >
                 {section.headers[0] || "Criterio"}
@@ -34,7 +34,7 @@ function MatrixTable({ section, index }: { section: CriterioSection; index: numb
               {valueHeaders.map((h, i) => (
                 <th
                   key={i}
-                  className="px-4 py-3 text-left text-xs font-bold text-white border border-gray-300 align-bottom"
+                  className="px-4 py-3 text-left text-xs font-bold text-white border border-slate-300 align-bottom"
                   style={{ backgroundColor: "#166534", minWidth: 200 }}
                 >
                   {h}
@@ -48,21 +48,21 @@ function MatrixTable({ section, index }: { section: CriterioSection; index: numb
               <tr>
                 <td
                   colSpan={colCount + 1}
-                  className="px-4 py-6 text-center text-gray-400 border border-gray-200"
+                  className="px-4 py-6 text-center text-slate-400 border border-slate-200"
                 >
                   Sin datos
                 </td>
               </tr>
             ) : (
               section.rows.map((row, ri) => (
-                <tr key={ri} className={ri % 2 === 0 ? "bg-white" : "bg-gray-50/60"}>
-                  <td className="px-4 py-3 font-semibold text-gray-800 bg-gray-100 border border-gray-200 break-words whitespace-normal align-top">
+                <tr key={ri} className={ri % 2 === 0 ? "bg-white" : "bg-slate-50/60"}>
+                  <td className="px-4 py-3 font-semibold text-slate-800 bg-slate-100 border border-slate-200 break-words whitespace-normal align-top">
                     {row[0] ?? ""}
                   </td>
                   {Array.from({ length: colCount }, (_, ci) => (
                     <td
                       key={ci}
-                      className="px-4 py-3 text-gray-600 border border-gray-200 break-words whitespace-normal align-top leading-relaxed"
+                      className="px-4 py-3 text-slate-600 border border-slate-200 break-words whitespace-normal align-top leading-relaxed"
                     >
                       {row[ci + 1] ?? ""}
                     </td>
@@ -84,19 +84,19 @@ export default async function CriteriosPage() {
     <div className="flex flex-col gap-8 max-w-6xl">
 
       <div>
-        <h2 className="text-lg font-semibold text-gray-800">Criterios de Clasificación</h2>
-        <p className="text-sm text-gray-500 mt-0.5">
+        <h2 className="text-lg font-semibold text-slate-800">Criterios de Clasificación</h2>
+        <p className="text-sm text-slate-500 mt-0.5">
           Guía de referencia para la categorización de solicitudes de Ingeniería de Procesos.
         </p>
       </div>
 
       {sections.length === 0 ? (
-        <div className="rounded-xl border border-gray-200 bg-white p-10 text-center">
-          <p className="text-gray-400 text-sm">
+        <div className="rounded-xl border border-slate-200 bg-white p-10 text-center">
+          <p className="text-slate-400 text-sm">
             No se pudieron cargar los criterios desde Google Sheets.
             <br />
             Verificá que la hoja{" "}
-            <span className="font-mono font-medium text-gray-600">CLASIF</span>{" "}
+            <span className="font-mono font-medium text-slate-600">CLASIF</span>{" "}
             exista y que las credenciales estén configuradas.
           </p>
         </div>

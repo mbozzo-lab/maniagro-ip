@@ -195,12 +195,12 @@ export default async function DashboardPage({
       {/* Header + responsable filter */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="text-lg font-semibold text-gray-800">
+          <h2 className="text-lg font-semibold text-slate-800">
             Bienvenido, {session?.user.name?.split(" ")[0]}
           </h2>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-slate-500">
             {responsable
-              ? <>Mostrando datos de <span className="font-medium text-gray-700">{responsable}</span></>
+              ? <>Mostrando datos de <span className="font-medium text-slate-700">{responsable}</span></>
               : "Resumen general de solicitudes de Ingeniería de Procesos"}
           </p>
         </div>
@@ -228,15 +228,15 @@ export default async function DashboardPage({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         {/* Próximos vencimientos */}
-        <div className="rounded-xl border border-gray-200 bg-white p-5 flex flex-col gap-3">
+        <div className="rounded-xl border border-slate-200 bg-white p-5 flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-gray-700">Próximos vencimientos</h3>
+            <h3 className="text-sm font-semibold text-slate-700">Próximos vencimientos</h3>
             <a href="/solicitudes?vencimiento=15dias" className="text-xs text-brand-green hover:underline font-medium">
               Ver todos →
             </a>
           </div>
           {vencimientos.length === 0 ? (
-            <p className="text-sm text-gray-400 py-4 text-center">No hay vencimientos próximos</p>
+            <p className="text-sm text-slate-400 py-4 text-center">No hay vencimientos próximos</p>
           ) : (
             <ul className="flex flex-col gap-2">
               {vencimientos.map((s) => {
@@ -247,14 +247,14 @@ export default async function DashboardPage({
                 const urgentCls =
                   diffDays <= 3 ? "text-red-600 font-semibold" :
                   diffDays <= 7 ? "text-orange-500 font-medium" :
-                  "text-gray-500";
+                  "text-slate-500";
                 return (
                   <li key={s.id}>
                     <a
                       href="/solicitudes?vencimiento=15dias"
-                      className="flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 hover:bg-gray-50 transition-colors border border-gray-100"
+                      className="flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 hover:bg-slate-50 transition-colors border border-slate-100"
                     >
-                      <span className="text-sm text-gray-800 truncate flex-1">{s.proyecto}</span>
+                      <span className="text-sm text-slate-800 truncate flex-1">{s.proyecto}</span>
                       <div className="flex items-center gap-2 shrink-0">
                         <span className={`px-1.5 py-0.5 rounded text-xs ${estadoBadge[s.estado]}`}>
                           {estadoLabel[s.estado]}
@@ -272,20 +272,20 @@ export default async function DashboardPage({
         </div>
 
         {/* Palabras clave recurrentes */}
-        <div className="rounded-xl border border-gray-200 bg-white p-5 flex flex-col gap-3">
+        <div className="rounded-xl border border-slate-200 bg-white p-5 flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-gray-700">Palabras clave recurrentes</h3>
-            <span className="text-xs text-gray-400">detalle + comentarios</span>
+            <h3 className="text-sm font-semibold text-slate-700">Palabras clave recurrentes</h3>
+            <span className="text-xs text-slate-400">detalle + comentarios</span>
           </div>
           {bottleneck.length === 0 ? (
-            <p className="text-sm text-gray-400 py-4 text-center">No hay suficientes datos de texto</p>
+            <p className="text-sm text-slate-400 py-4 text-center">No hay suficientes datos de texto</p>
           ) : (
             <ul className="flex flex-col gap-3 pt-1">
               {bottleneck.map(({ word, count }, i) => (
                 <li key={word} className="flex items-center gap-3">
-                  <span className="text-xs font-mono text-gray-400 w-4 text-right">{i + 1}</span>
+                  <span className="text-xs font-mono text-slate-400 w-4 text-right">{i + 1}</span>
                   <div className="flex-1 flex items-center gap-2">
-                    <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
+                    <div className="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden">
                       <div
                         className="h-2 rounded-full transition-all"
                         style={{
@@ -294,7 +294,7 @@ export default async function DashboardPage({
                         }}
                       />
                     </div>
-                    <span className="text-xs text-gray-400 w-8 text-right">{count}×</span>
+                    <span className="text-xs text-slate-400 w-8 text-right">{count}×</span>
                   </div>
                   <a
                     href={`/solicitudes?keyword=${encodeURIComponent(word)}`}
