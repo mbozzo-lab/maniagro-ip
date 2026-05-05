@@ -5,9 +5,10 @@ import { usePathname } from "next/navigation";
 import type { Role } from "@/generated/prisma/client";
 
 const navItems = [
-  { href: "/",            label: "Dashboard",  icon: "⊞"  },
-  { href: "/solicitudes", label: "Solicitudes", icon: "📋" },
-  { href: "/criterios",   label: "Criterios",   icon: "📖" },
+  { href: "/",            label: "Dashboard",   icon: "⊞"  },
+  { href: "/solicitudes", label: "Solicitudes",  icon: "📋" },
+  { href: "/criterios",   label: "Criterios",    icon: "📖" },
+  { href: "/actividades", label: "Actividades",  icon: "✅" },
 ];
 
 const adminItems = [

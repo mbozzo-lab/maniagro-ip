@@ -18,9 +18,32 @@ export async function GET(request: Request) {
   try {
     const rows = await readSolicitudesFromSheet();
 
-    const validEstados        = ["NO_INICIADO", "EN_PROCESO", "EN_REVISION", "FINALIZADO", "RETRASADO", "ANULADO"];
-    const validPrioridades    = ["BAJA", "MEDIA", "ALTA"];
-    const validTipos          = ["ST", "SNP"];
+    const ESTADO_MAP: Record<string, string> = {
+      "no iniciado": "NO_INICIADO",
+      "en proceso":  "EN_PROCESO",
+      "en revision": "EN_REVISION",
+      "en revisión": "EN_REVISION",
+      "finalizado":  "FINALIZADO",
+      "retrasado":   "RETRASADO",
+      "anulado":     "ANULADO",
+      "NO_INICIADO": "NO_INICIADO",
+      "EN_PROCESO":  "EN_PROCESO",
+      "EN_REVISION": "EN_REVISION",
+      "FINALIZADO":  "FINALIZADO",
+      "RETRASADO":   "RETRASADO",
+      "ANULADO":     "ANULADO",
+    };
+
+    const PRIORIDAD_MAP: Record<string, string> = {
+      "baja":  "BAJA",
+      "media": "MEDIA",
+      "alta":  "ALTA",
+      "BAJA":  "BAJA",
+      "MEDIA": "MEDIA",
+      "ALTA":  "ALTA",
+    };
+
+    const validTipos           = ["ST", "SNP"];
     const validClasificaciones = ["A", "B", "C"];
 
     let updated = 0;
@@ -28,13 +51,13 @@ export async function GET(request: Request) {
 
     for (const row of rows) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const estado        = validEstados.includes(row.estado)                                     ? row.estado        as any : "NO_INICIADO";
+      const estado        = (ESTADO_MAP[row.estado]    ?? ESTADO_MAP[row.estado.toLowerCase()]    ?? "NO_INICIADO") as any;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const prioridad     = validPrioridades.includes(row.prioridad)                              ? row.prioridad     as any : "MEDIA";
+      const prioridad     = (PRIORIDAD_MAP[row.prioridad] ?? PRIORIDAD_MAP[row.prioridad.toLowerCase()] ?? "MEDIA") as any;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const tipo          = row.tipo          && validTipos.includes(row.tipo)                    ? row.tipo          as any : null;
+      const tipo          = row.tipo          ? (validTipos.includes(row.tipo.toUpperCase())          ? row.tipo.toUpperCase()          as any : null) : null;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const clasificacion = row.clasificacion && validClasificaciones.includes(row.clasificacion) ? row.clasificacion as any : null;
+      const clasificacion = row.clasificacion ? (validClasificaciones.includes(row.clasificacion.toUpperCase()) ? row.clasificacion.toUpperCase() as any : null) : null;
 
       const existing = await prisma.solicitud.findUnique({ where: { id: row._id } });
       if (!existing) { skipped++; continue; }

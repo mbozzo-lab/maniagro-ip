@@ -16,7 +16,7 @@ export default auth((req) => {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|login|api/auth|api/sync-from-sheet|api/seed-ids).*)",
+    "/((?!_next/static|_next/image|favicon.ico|login|api/auth|api/sync-from-sheet|api/seed-ids|api/import-missing|api/sync-actividades).*)",
   ],
 };
 
