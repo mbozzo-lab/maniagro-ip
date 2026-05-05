@@ -209,12 +209,21 @@ export default async function DashboardPage({
 
       {/* Metric cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
-        {cards.map(({ label, key, color }) => (
-          <div key={key} className={`rounded-xl p-4 flex flex-col gap-1 ${color}`}>
-            <span className="text-2xl font-bold">{metrics[key]}</span>
-            <span className="text-xs font-medium">{label}</span>
-          </div>
-        ))}
+        {cards.map(({ label, key, color }) => {
+          const value = metrics[key];
+          const pct = key !== "total" && metrics.total > 0
+            ? Math.round((value / metrics.total) * 100)
+            : null;
+          return (
+            <div key={key} className={`rounded-xl p-4 flex flex-col gap-0.5 ${color}`}>
+              <span className="text-2xl font-bold">{value}</span>
+              <span className="text-xs font-medium">{label}</span>
+              {pct !== null && (
+                <span className="text-xs opacity-60">{pct}% del total</span>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Charts */}

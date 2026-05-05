@@ -55,17 +55,17 @@ export default async function ActividadesPage() {
         <div className="bg-white rounded-xl border border-slate-200 p-4">
           <p className="text-xs text-slate-500 mb-1">En proceso</p>
           <p className="text-2xl font-semibold text-amber-600">{counts["EN_PROCESO"] || 0}</p>
-          <p className="text-xs text-slate-400 mt-1">activas ahora</p>
+          <p className="text-xs text-slate-400 mt-1">{total > 0 ? Math.round(((counts["EN_PROCESO"] || 0) / total) * 100) : 0}% del total</p>
         </div>
         <div className="bg-white rounded-xl border border-slate-200 p-4">
           <p className="text-xs text-slate-500 mb-1">No iniciadas</p>
           <p className="text-2xl font-semibold text-slate-600">{counts["NO_INICIADO"] || 0}</p>
-          <p className="text-xs text-slate-400 mt-1">pendientes</p>
+          <p className="text-xs text-slate-400 mt-1">{total > 0 ? Math.round(((counts["NO_INICIADO"] || 0) / total) * 100) : 0}% del total</p>
         </div>
         <div className="bg-white rounded-xl border border-slate-200 p-4">
           <p className="text-xs text-slate-500 mb-1">Para revisar</p>
           <p className="text-2xl font-semibold text-yellow-500">{porRevisar}</p>
-          <p className="text-xs text-slate-400 mt-1">marcadas con flag</p>
+          <p className="text-xs text-slate-400 mt-1">{total > 0 ? Math.round((porRevisar / total) * 100) : 0}% del total</p>
         </div>
       </div>
 
