@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import ActividadesTable from "@/features/actividades/ui/ActividadesTable";
 
 const estadoConfig: Record<string, { label: string; bg: string; text: string; bar: string }> = {
   NO_INICIADO: { label: "No iniciado", bg: "bg-slate-100",   text: "text-slate-700",  bar: "bg-slate-400"  },
@@ -7,12 +8,6 @@ const estadoConfig: Record<string, { label: string; bg: string; text: string; ba
   FINALIZADO:  { label: "Finalizado",  bg: "bg-emerald-50",  text: "text-emerald-700",bar: "bg-emerald-500"},
   RETRASADO:   { label: "Retrasado",   bg: "bg-red-50",      text: "text-red-700",    bar: "bg-red-400"    },
   ANULADO:     { label: "Anulado",     bg: "bg-gray-100",    text: "text-gray-500",   bar: "bg-gray-300"   },
-};
-
-const prioridadConfig: Record<number, { label: string; color: string }> = {
-  1: { label: "Alta",  color: "text-red-600 font-bold" },
-  2: { label: "Media", color: "text-amber-600 font-semibold" },
-  3: { label: "Baja",  color: "text-slate-500" },
 };
 
 const BAR_ORDER = ["FINALIZADO", "EN_PROCESO", "EN_REVISION", "NO_INICIADO", "RETRASADO", "ANULADO"] as const;
@@ -129,83 +124,7 @@ export default async function ActividadesPage() {
       )}
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm bg-white">
-        <table className="w-full text-sm border-collapse">
-          <thead>
-            <tr className="bg-slate-50 border-b border-slate-200">
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Orden</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Prio.</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Proyecto</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase" style={{ minWidth: 250 }}>Detalle</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Línea</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Plazo</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Estado</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Comentario</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Revisar</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Fecha</th>
-            </tr>
-          </thead>
-          <tbody>
-            {actividades.length === 0 ? (
-              <tr>
-                <td colSpan={10} className="px-4 py-10 text-center text-slate-400">
-                  No hay actividades. Presioná &quot;Traer desde Sheet&quot; para cargarlas.
-                </td>
-              </tr>
-            ) : (
-              actividades.map((a) => {
-                const est  = estadoConfig[a.estado] ?? estadoConfig.NO_INICIADO;
-                const prio = a.prioridad ? prioridadConfig[a.prioridad] : null;
-                return (
-                  <tr key={a.id} className="border-t border-slate-100 hover:bg-slate-50/50">
-                    <td className="px-4 py-3">
-                      {a.orden != null
-                        ? <span className="text-slate-700 font-medium">{a.orden}</span>
-                        : <span className="text-slate-300">—</span>}
-                    </td>
-                    <td className="px-4 py-3">
-                      {prio
-                        ? <span className={prio.color}>{prio.label}</span>
-                        : <span className="text-slate-300">—</span>}
-                    </td>
-                    <td className="px-4 py-3">
-                      {a.solicitud ? (
-                        <a
-                          href={`/solicitudes/${a.solicitud.id}`}
-                          className="text-emerald-600 hover:text-emerald-700 hover:underline font-medium"
-                        >
-                          {a.solicitud.proyecto}
-                        </a>
-                      ) : (
-                        <span className="text-slate-400 italic">Sin vincular</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-slate-700 break-words whitespace-normal max-w-md">{a.detalle}</td>
-                    <td className="px-4 py-3 text-slate-500">{a.linea ?? "—"}</td>
-                    <td className="px-4 py-3 text-slate-500 text-sm whitespace-nowrap">{a.plazo ?? "—"}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium ${est.bg} ${est.text}`}>
-                        {est.label}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-slate-500 text-xs break-words whitespace-normal max-w-xs">
-                      {a.comentario ?? ""}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {a.revisar && (
-                        <span className="inline-block w-2.5 h-2.5 bg-yellow-400 rounded-full" title="Revisar" />
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">
-                      {a.fecha ? new Date(a.fecha).toLocaleDateString("es-AR") : "—"}
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+      <ActividadesTable actividades={actividades} />
 
     </div>
   );

@@ -144,11 +144,23 @@ export default async function SolicitudesPage({ searchParams }: { searchParams: 
 
   const filters: Filters = { keyword, estado, asignado, planta, vencimiento };
 
-  const [solicitudes, filterOptions, usuarios] = await Promise.all([
+  const hoy        = new Date();
+  const inicioMes  = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+  const inicioAnio = new Date(hoy.getFullYear(), 0, 1);
+
+  const [solicitudes, filterOptions, usuarios, actividadesFinalizadas] = await Promise.all([
     getSolicitudes(filters),
     getFilterOptions(),
     getUsuarios(),
+    prisma.actividad.findMany({ where: { estado: "FINALIZADO" }, select: { fecha: true } }),
   ]);
+
+  const actividadesFinalizadasMes  = actividadesFinalizadas.filter(
+    (a) => a.fecha && new Date(a.fecha) >= inicioMes,
+  ).length;
+  const actividadesFinalizadasAnio = actividadesFinalizadas.filter(
+    (a) => a.fecha && new Date(a.fecha) >= inicioAnio,
+  ).length;
 
   const hasFilters = keyword || estado || asignado || planta || vencimiento;
 
@@ -179,6 +191,20 @@ export default async function SolicitudesPage({ searchParams }: { searchParams: 
             </a>
           </div>
           <NuevaSolicitudModal usuarios={usuarios} onCreate={crearSolicitud} />
+        </div>
+      </div>
+
+      {/* Activity metrics */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="bg-white rounded-xl border border-slate-200 p-4">
+          <p className="text-xs text-slate-500 mb-1">Act. este mes</p>
+          <p className="text-2xl font-semibold text-blue-600">{actividadesFinalizadasMes}</p>
+          <p className="text-xs text-slate-400 mt-1">finalizadas</p>
+        </div>
+        <div className="bg-white rounded-xl border border-slate-200 p-4">
+          <p className="text-xs text-slate-500 mb-1">Act. este año</p>
+          <p className="text-2xl font-semibold text-purple-600">{actividadesFinalizadasAnio}</p>
+          <p className="text-xs text-slate-400 mt-1">finalizadas</p>
         </div>
       </div>
 

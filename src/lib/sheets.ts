@@ -420,22 +420,26 @@ export async function readActividadesFromSheet(sheetName = "ACT FRANCISCO"): Pro
   const results: SheetActividad[] = [];
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i];
-    const detalle = r[1]?.trim();
-    if (!detalle) continue;
+    const detalle        = r[1]?.trim();
+    const proyectoOrigen = r[0]?.trim();
+
+    // Skip incomplete or garbage rows
+    if (!detalle || detalle.length < 5 || !proyectoOrigen) continue;
+    if (/^\d+$/.test(detalle) || detalle.split(" ").length === 1) continue;
 
     results.push({
-      proyectoOrigen: r[0]?.trim() || "",
+      proyectoOrigen,
       detalle,
-      linea:          r[2]?.trim() || null,
-      responsable:    r[3]?.trim() || "Francisco",
-      estado:         r[4]?.trim() || "No iniciado",
-      plazo:          r[5]?.trim() || null,
-      prioridad:      r[6] ? Number(r[6]) : null,
-      orden:          r[10] ? Number(r[10]) : null,
-      comentario:     r[7]?.trim() || null,
-      revisar:        r[8]?.trim()?.toUpperCase() === "SI",
-      fecha:          parseDate(r[9]?.trim() || ""),
-      sheetRow:       i + 1,
+      linea:       r[2]?.trim() || null,
+      responsable: r[3]?.trim() || "Francisco",
+      estado:      r[4]?.trim() || "No iniciado",
+      plazo:       r[5]?.trim() || null,
+      prioridad:   r[6] ? Number(r[6]) : null,
+      comentario:  r[7]?.trim() || null,
+      revisar:     r[8]?.trim()?.toUpperCase() === "SI",
+      fecha:       parseDate(r[9]?.trim() || ""),
+      orden:       r[10] ? Number(r[10]) : null,
+      sheetRow:    i + 1,
     });
   }
   return results;
