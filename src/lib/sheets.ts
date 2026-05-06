@@ -427,6 +427,9 @@ export async function readActividadesFromSheet(sheetName = "ACT FRANCISCO"): Pro
     if (!detalle || detalle.length < 5 || !proyectoOrigen) continue;
     if (/^\d+$/.test(detalle) || detalle.split(" ").length === 1) continue;
 
+    const orden = r[10] ? Number(r[10]) : null;
+    console.log(`[ACT] fila ${i + 1}: proyecto="${proyectoOrigen}" | plazo="${r[5]}" | orden(K)="${r[10]}" → ${orden}`);
+
     results.push({
       proyectoOrigen,
       detalle,
@@ -438,9 +441,10 @@ export async function readActividadesFromSheet(sheetName = "ACT FRANCISCO"): Pro
       comentario:  r[7]?.trim() || null,
       revisar:     r[8]?.trim()?.toUpperCase() === "SI",
       fecha:       parseDate(r[9]?.trim() || ""),
-      orden:       r[10] ? Number(r[10]) : null,
+      orden,
       sheetRow:    i + 1,
     });
   }
+  console.log(`[ACT] total leídas: ${results.length} actividades`);
   return results;
 }
