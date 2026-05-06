@@ -385,11 +385,11 @@ export type SheetActividad = {
   responsable:    string;
   estado:         string;
   plazo:          string | null;
-  prioridad:      number | null;
   orden:          number | null;
   comentario:     string | null;
   revisar:        boolean;
   fecha:          Date | null;
+  prioridad:      number | null;
   sheetRow:       number;
 };
 
@@ -398,11 +398,12 @@ export async function readActividadesFromSheet(sheetName = "ACT FRANCISCO"): Pro
   if (!auth) return [];
 
   const sheets = google.sheets({ version: "v4", auth });
-  const name = sheetName.includes(" ") ? `'${sheetName}'` : sheetName;
 
+  // Sheet layout: A=Proyecto, B=Detalle, C=Línea, D=Responsable, E=Estado,
+  //               F=Plazo, G=Orden, H=Comentario, I=Revisar, J=Fecha
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID!,
-    range: `${name}!A1:K500`,
+    range: `'${sheetName}'!A1:J500`,
   });
 
   const rows = (res.data.values ?? []) as string[][];
@@ -419,32 +420,27 @@ export async function readActividadesFromSheet(sheetName = "ACT FRANCISCO"): Pro
 
   const results: SheetActividad[] = [];
   for (let i = 1; i < rows.length; i++) {
-    const r = rows[i];
+    const r            = rows[i];
     const detalle        = r[1]?.trim();
     const proyectoOrigen = r[0]?.trim();
 
-    // Skip incomplete or garbage rows
     if (!detalle || detalle.length < 5 || !proyectoOrigen) continue;
     if (/^\d+$/.test(detalle) || detalle.split(" ").length === 1) continue;
 
-    const orden = r[10] ? Number(r[10]) : null;
-    console.log(`[ACT] fila ${i + 1}: proyecto="${proyectoOrigen}" | plazo="${r[5]}" | orden(K)="${r[10]}" → ${orden}`);
-
     results.push({
-      proyectoOrigen,
-      detalle,
-      linea:       r[2]?.trim() || null,
-      responsable: r[3]?.trim() || "Francisco",
-      estado:      r[4]?.trim() || "No iniciado",
-      plazo:       r[5]?.trim() || null,
-      prioridad:   r[6] ? Number(r[6]) : null,
-      comentario:  r[7]?.trim() || null,
-      revisar:     r[8]?.trim()?.toUpperCase() === "SI",
-      fecha:       parseDate(r[9]?.trim() || ""),
-      orden,
+      proyectoOrigen,                                    // A (r[0])
+      detalle,                                           // B (r[1])
+      linea:       r[2]?.trim() || null,                 // C (r[2])
+      responsable: r[3]?.trim() || "Francisco",          // D (r[3])
+      estado:      r[4]?.trim() || "No iniciado",        // E (r[4])
+      plazo:       r[5]?.trim() || null,                 // F (r[5])
+      orden:       r[6] ? Number(r[6]) : null,           // G (r[6])
+      comentario:  r[7]?.trim() || null,                 // H (r[7])
+      revisar:     r[8]?.trim()?.toUpperCase() === "SI", // I (r[8])
+      fecha:       parseDate(r[9]?.trim() || ""),        // J (r[9])
+      prioridad:   null,                                 // no existe en el sheet
       sheetRow:    i + 1,
     });
   }
-  console.log(`[ACT] total leídas: ${results.length} actividades`);
   return results;
 }
