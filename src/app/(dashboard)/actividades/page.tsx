@@ -43,11 +43,19 @@ export default async function ActividadesPage() {
     <div className="flex flex-col gap-6 max-w-7xl">
 
       {/* Header */}
-      <div>
-        <h2 className="text-lg font-semibold text-slate-800">Actividades — Francisco</h2>
-        <p className="text-sm text-slate-500 mt-0.5">
-          {total} actividades total · {totalActivas} activas · {vinculadas} vinculadas a proyectos
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-800">Actividades — Francisco</h2>
+          <p className="text-sm text-slate-500 mt-0.5">
+            {total} actividades total · {totalActivas} activas · {vinculadas} vinculadas a proyectos
+          </p>
+        </div>
+        <a
+          href="/actividades/nueva"
+          className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors"
+        >
+          + Nueva actividad
+        </a>
       </div>
 
       {/* Metric cards */}
