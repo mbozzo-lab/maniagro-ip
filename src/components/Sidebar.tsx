@@ -40,7 +40,7 @@ const navItems: NavItem[] = [
     label: "Actividades",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5 shrink-0">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
       </svg>
     ),
   },
@@ -69,31 +69,30 @@ export default function Sidebar({ role }: { role: Role }) {
     return (
       <Link
         href={item.href}
-        className={`relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${
           active
-            ? "bg-emerald-500/10 text-emerald-400"
-            : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+            ? "bg-primary-500/10 text-primary-400 border-l-2 border-primary-500 pl-[10px]"
+            : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
         }`}
       >
-        {active && (
-          <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-emerald-500 rounded-r-full" />
-        )}
-        {item.icon}
+        <span className={active ? "text-primary-400" : "text-slate-500 group-hover:text-slate-300"}>
+          {item.icon}
+        </span>
         {item.label}
       </Link>
     );
   }
 
   return (
-    <aside className="w-56 shrink-0 bg-slate-900 flex flex-col h-full">
+    <aside className="w-60 shrink-0 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 border-r border-slate-800/80 flex flex-col h-full">
       {/* Brand */}
       <div className="px-5 py-5 border-b border-slate-800">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 bg-primary-600 rounded-xl flex items-center justify-center shrink-0 shadow-glow-sm">
             <span className="text-white text-sm font-bold">M</span>
           </div>
           <div>
-            <p className="text-xs font-bold text-white leading-tight">Maniagro</p>
+            <p className="text-sm font-semibold text-white leading-tight">Maniagro</p>
             <p className="text-xs text-slate-400 leading-tight">Ing. de Procesos</p>
           </div>
         </div>
@@ -110,6 +109,13 @@ export default function Sidebar({ role }: { role: Role }) {
           </>
         )}
       </nav>
+
+      {/* Footer */}
+      <div className="p-4 border-t border-slate-800">
+        <div className="px-3 py-2 bg-slate-800/50 rounded-lg">
+          <p className="text-slate-500 text-xs">v2.0 · © 2026 Maniagro</p>
+        </div>
+      </div>
     </aside>
   );
 }
