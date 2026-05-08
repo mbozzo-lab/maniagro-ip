@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import DashboardCharts from "@/components/DashboardCharts";
 import DashboardFiltroResponsable from "@/components/DashboardFiltroResponsable";
+import Badge from "@/shared/ui/components/Badge";
 import type { Estado } from "@/generated/prisma/client";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -140,22 +141,22 @@ async function getChartData(responsable?: string) {
 // ─── Static config ────────────────────────────────────────────────────────────
 
 const cards = [
-  { label: "Total",       key: "total",      color: "bg-blue-50 text-blue-700" },
-  { label: "No iniciado", key: "noIniciado",  color: "bg-gray-100 text-gray-600" },
-  { label: "En proceso",  key: "enProceso",   color: "bg-yellow-50 text-yellow-700" },
-  { label: "Retrasado",   key: "retrasado",   color: "bg-red-50 text-red-600" },
-  { label: "En revisión", key: "enRevision",  color: "bg-orange-50 text-orange-700" },
-  { label: "Finalizado",  key: "finalizado",  color: "bg-green-50 text-green-700" },
-  { label: "Anulado",     key: "anulado",     color: "bg-gray-100 text-gray-400" },
+  { label: "Total",       key: "total",      color: "bg-primary-50 text-primary-700",  numColor: "text-primary-600"  },
+  { label: "No iniciado", key: "noIniciado",  color: "bg-slate-50 text-slate-600",      numColor: "text-slate-700"    },
+  { label: "En proceso",  key: "enProceso",   color: "bg-warning-50 text-warning-700",  numColor: "text-warning-600"  },
+  { label: "Retrasado",   key: "retrasado",   color: "bg-danger-50 text-danger-700",    numColor: "text-danger-600"   },
+  { label: "En revisión", key: "enRevision",  color: "bg-orange-50 text-orange-700",    numColor: "text-orange-600"   },
+  { label: "Finalizado",  key: "finalizado",  color: "bg-success-50 text-success-700",  numColor: "text-success-600"  },
+  { label: "Anulado",     key: "anulado",     color: "bg-slate-100 text-slate-400",     numColor: "text-slate-400"    },
 ] as const;
 
 const estadoBadge: Record<string, string> = {
-  NO_INICIADO: "bg-gray-100 text-gray-600",
-  EN_PROCESO:  "bg-yellow-100 text-yellow-700",
+  NO_INICIADO: "bg-slate-100 text-slate-600",
+  EN_PROCESO:  "bg-warning-100 text-warning-700",
   EN_REVISION: "bg-orange-100 text-orange-700",
-  FINALIZADO:  "bg-green-100 text-green-700",
-  RETRASADO:   "bg-red-100 text-red-600",
-  ANULADO:     "bg-gray-200 text-gray-400",
+  FINALIZADO:  "bg-success-100 text-success-700",
+  RETRASADO:   "bg-danger-100 text-danger-600",
+  ANULADO:     "bg-slate-200 text-slate-400",
 };
 
 const estadoLabel: Record<string, string> = {
@@ -209,17 +210,17 @@ export default async function DashboardPage({
 
       {/* Metric cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
-        {cards.map(({ label, key, color }) => {
+        {cards.map(({ label, key, color, numColor }) => {
           const value = metrics[key];
           const pct = key !== "total" && metrics.total > 0
             ? Math.round((value / metrics.total) * 100)
             : null;
           return (
-            <div key={key} className={`rounded-xl p-4 flex flex-col gap-0.5 ${color}`}>
-              <span className="text-2xl font-bold">{value}</span>
-              <span className="text-xs font-medium">{label}</span>
+            <div key={key} className={`rounded-xl border p-4 flex flex-col gap-0.5 shadow-card transition-all hover:shadow-card-hover hover:-translate-y-0.5 bg-white border-slate-200`}>
+              <span className={`text-2xl font-bold ${numColor}`}>{value}</span>
+              <span className="text-xs font-medium text-slate-600">{label}</span>
               {pct !== null && (
-                <span className="text-xs opacity-60">{pct}% del total</span>
+                <span className="text-xs text-slate-400 mt-0.5">{pct}% del total</span>
               )}
             </div>
           );
@@ -237,10 +238,10 @@ export default async function DashboardPage({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         {/* Próximos vencimientos */}
-        <div className="rounded-xl border border-slate-200 bg-white p-5 flex flex-col gap-3">
+        <div className="rounded-xl border border-slate-200 bg-white p-5 flex flex-col gap-3 shadow-card">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-slate-700">Próximos vencimientos</h3>
-            <a href="/solicitudes?vencimiento=15dias" className="text-xs text-brand-green hover:underline font-medium">
+            <a href="/solicitudes?vencimiento=15dias" className="text-xs text-primary-600 hover:underline font-medium">
               Ver todos →
             </a>
           </div>
@@ -254,8 +255,8 @@ export default async function DashboardPage({
                 today.setHours(0, 0, 0, 0);
                 const diffDays = Math.round((date.getTime() - today.getTime()) / 86_400_000);
                 const urgentCls =
-                  diffDays <= 3 ? "text-red-600 font-semibold" :
-                  diffDays <= 7 ? "text-orange-500 font-medium" :
+                  diffDays <= 3 ? "text-danger-600 font-semibold" :
+                  diffDays <= 7 ? "text-warning-600 font-medium" :
                   "text-slate-500";
                 return (
                   <li key={s.id}>
@@ -281,7 +282,7 @@ export default async function DashboardPage({
         </div>
 
         {/* Palabras clave recurrentes */}
-        <div className="rounded-xl border border-slate-200 bg-white p-5 flex flex-col gap-3">
+        <div className="rounded-xl border border-slate-200 bg-white p-5 flex flex-col gap-3 shadow-card">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-slate-700">Palabras clave recurrentes</h3>
             <span className="text-xs text-slate-400">detalle + comentarios</span>

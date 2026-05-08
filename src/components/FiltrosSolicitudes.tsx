@@ -18,7 +18,7 @@ const estadoOpts = [
 ];
 
 const selectCls =
-  "border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-green bg-white";
+  "border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white text-slate-700 transition-colors";
 
 export default function FiltrosSolicitudes({ asignados, plantas }: Props) {
   const router = useRouter();
@@ -70,7 +70,7 @@ export default function FiltrosSolicitudes({ asignados, plantas }: Props) {
         placeholder="Buscar proyectos…"
         value={searchText}
         onChange={(e) => handleSearchChange(e.target.value)}
-        className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-green w-52"
+        className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white text-slate-700 placeholder:text-slate-400 transition-colors w-52"
       />
 
       {/* Estado */}
@@ -95,11 +95,11 @@ export default function FiltrosSolicitudes({ asignados, plantas }: Props) {
 
       {/* Vencimiento badge (shown when arriving from dashboard) */}
       {vencimiento === "15dias" && (
-        <span className="flex items-center gap-1 text-xs bg-orange-100 text-orange-700 px-2.5 py-1 rounded-full font-medium">
+        <span className="flex items-center gap-1 text-xs bg-warning-100 text-warning-700 px-2.5 py-1 rounded-full font-medium border border-warning-200">
           Vencen en 15 días
           <button
             onClick={() => navigate({ vencimiento: "" })}
-            className="ml-0.5 hover:text-orange-900 font-bold leading-none"
+            className="ml-0.5 hover:text-warning-900 font-bold leading-none"
             aria-label="Quitar filtro"
           >
             ×
@@ -115,7 +115,7 @@ export default function FiltrosSolicitudes({ asignados, plantas }: Props) {
             const vista = searchParams.get("vista");
             router.replace(vista ? `${pathname}?vista=${vista}` : pathname);
           }}
-          className="text-xs text-gray-400 hover:text-gray-600 underline underline-offset-2 whitespace-nowrap"
+          className="text-xs text-slate-400 hover:text-slate-600 underline underline-offset-2 whitespace-nowrap transition-colors"
         >
           Limpiar filtros
         </button>
