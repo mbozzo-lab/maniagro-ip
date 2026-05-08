@@ -4,15 +4,16 @@ import SolicitudTable from "@/components/SolicitudTable";
 import SolicitudKanban from "@/components/SolicitudKanban";
 import NuevaSolicitudModal from "@/components/NuevaSolicitudModal";
 import FiltrosSolicitudes from "@/components/FiltrosSolicitudes";
+import ExportButton from "@/components/ExportButton";
 import type { Tipo, Prioridad, Clasificacion, Estado } from "@/generated/prisma/client";
 import { syncSolicitudToSheet } from "@/lib/sheets";
 import { sendAssignmentEmail } from "@/lib/email";
 
 type Filters = {
   keyword?:     string;
-  estado?:      string;
-  asignado?:    string;
-  planta?:      string;
+  estados?:     string[];
+  asignados?:   string[];
+  plantas?:     string[];
   vencimiento?: string;
 };
 
@@ -22,7 +23,6 @@ async function getSolicitudes(filters: Filters) {
   const in15 = new Date(today);
   in15.setDate(today.getDate() + 15);
 
-  // Build an AND array so multiple filters always combine correctly.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const AND: any[] = [];
 
@@ -38,18 +38,18 @@ async function getSolicitudes(filters: Filters) {
     });
   }
 
-  if (filters.estado) {
-    AND.push({ estado: filters.estado as Estado });
+  if (filters.estados?.length) {
+    AND.push({ estado: { in: filters.estados as Estado[] } });
   } else if (filters.vencimiento === "15dias") {
     AND.push({ estado: { notIn: ["ANULADO", "FINALIZADO"] as Estado[] } });
   }
 
-  if (filters.asignado) {
-    AND.push({ asignado: { equals: filters.asignado, mode: "insensitive" } });
+  if (filters.asignados?.length) {
+    AND.push({ asignado: { in: filters.asignados } });
   }
 
-  if (filters.planta) {
-    AND.push({ planta: { equals: filters.planta, mode: "insensitive" } });
+  if (filters.plantas?.length) {
+    AND.push({ planta: { in: filters.plantas } });
   }
 
   if (filters.vencimiento === "15dias") {
@@ -131,18 +131,24 @@ async function crearSolicitud(data: FormData) {
 type SearchParams = Promise<{
   vista?:       string;
   keyword?:     string;
-  estado?:      string;
-  asignado?:    string;
-  planta?:      string;
+  estados?:     string;
+  asignados?:   string;
+  plantas?:     string;
   vencimiento?: string;
 }>;
 
 export default async function SolicitudesPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
-  const { vista, keyword, estado, asignado, planta, vencimiento } = params;
+  const { vista, keyword, estados, asignados, plantas, vencimiento } = params;
   const isKanban = vista === "kanban";
 
-  const filters: Filters = { keyword, estado, asignado, planta, vencimiento };
+  const filters: Filters = {
+    keyword,
+    vencimiento,
+    estados:   estados   ? estados.split(",").filter(Boolean)   : undefined,
+    asignados: asignados ? asignados.split(",").filter(Boolean) : undefined,
+    plantas:   plantas   ? plantas.split(",").filter(Boolean)   : undefined,
+  };
 
   const hoy        = new Date();
   const inicioMes  = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
@@ -162,7 +168,7 @@ export default async function SolicitudesPage({ searchParams }: { searchParams: 
     (a) => a.fecha && new Date(a.fecha) >= inicioAnio,
   ).length;
 
-  const hasFilters = keyword || estado || asignado || planta || vencimiento;
+  const hasFilters = keyword || estados || asignados || plantas || vencimiento;
 
   return (
     <div className="flex flex-col gap-4">
@@ -175,17 +181,32 @@ export default async function SolicitudesPage({ searchParams }: { searchParams: 
             {hasFilters ? " encontrados" : " registrados"}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <ExportButton
+            data={solicitudes.map((s) => ({
+              "N°":        s.numero,
+              Proyecto:    s.proyecto,
+              Estado:      s.estado,
+              Prioridad:   s.prioridad,
+              Asignado:    s.asignado ?? "",
+              Planta:      s.planta   ?? "",
+              "Avance %":  s.avance,
+              "Fecha fin": s.fechaFin
+                ? new Date(s.fechaFin).toISOString().split("T")[0]
+                : "",
+            }))}
+            filename="proyectos"
+          />
           <div className="flex rounded-lg border border-slate-200 overflow-hidden">
             <a
               href="/solicitudes"
-              className={`px-3 py-1.5 text-xs font-medium transition-colors ${!isKanban ? "bg-brand-green text-white" : "text-slate-600 hover:bg-slate-50"}`}
+              className={`px-3 py-1.5 text-xs font-medium transition-colors ${!isKanban ? "bg-primary-600 text-white" : "text-slate-600 hover:bg-slate-50"}`}
             >
               Tabla
             </a>
             <a
               href="/solicitudes?vista=kanban"
-              className={`px-3 py-1.5 text-xs font-medium transition-colors ${isKanban ? "bg-brand-green text-white" : "text-slate-600 hover:bg-slate-50"}`}
+              className={`px-3 py-1.5 text-xs font-medium transition-colors ${isKanban ? "bg-primary-600 text-white" : "text-slate-600 hover:bg-slate-50"}`}
             >
               Kanban
             </a>

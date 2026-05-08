@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import Button from "../components/Button";
 
 function SyncIcon() {
@@ -20,83 +21,89 @@ function UploadIcon() {
 }
 
 export function SyncFromSheetButton() {
-  const [status, setStatus] = useState<"idle" | "loading" | "ok" | "error">("idle");
-  const [result, setResult] = useState("");
+  const [loading, setLoading] = useState(false);
 
   async function handleSync() {
-    setStatus("loading");
-    setResult("");
+    setLoading(true);
+    const toastId = toast.loading("Sincronizando desde Sheet…");
     try {
-      const importData = await fetch("/api/import-missing").then((r) => r.json());
-      const syncData   = await fetch("/api/sync-from-sheet").then((r) => r.json());
-      const actData    = await fetch("/api/sync-actividades").then((r) => r.json());
+      const [importData, syncData, actData] = await Promise.all([
+        fetch("/api/import-missing").then((r) => r.json()),
+        fetch("/api/sync-from-sheet").then((r) => r.json()),
+        fetch("/api/sync-actividades").then((r) => r.json()),
+      ]);
 
       const parts: string[] = [];
-      if (importData.imported > 0)                                    parts.push(`${importData.imported} nuevas`);
-      if (syncData.updated > 0)                                       parts.push(`${syncData.updated} actualizadas`);
-      if ((actData.created ?? 0) + (actData.updated ?? 0) > 0)       parts.push(`${(actData.created ?? 0) + (actData.updated ?? 0)} actividades`);
+      if (importData.imported > 0)
+        parts.push(`${importData.imported} nuevas`);
+      if (syncData.updated > 0)
+        parts.push(`${syncData.updated} actualizadas`);
+      if ((actData.created ?? 0) + (actData.updated ?? 0) > 0)
+        parts.push(`${(actData.created ?? 0) + (actData.updated ?? 0)} actividades`);
 
-      setResult(parts.length > 0 ? parts.join(", ") : "Todo al día");
-      setStatus("ok");
+      toast.success("Sincronización completada", {
+        id: toastId,
+        description: parts.length > 0 ? parts.join(", ") : "Todo al día",
+      });
     } catch {
-      setStatus("error");
+      toast.error("Error al sincronizar", {
+        id: toastId,
+        description: "Intentá nuevamente",
+      });
     } finally {
-      setTimeout(() => setStatus("idle"), 5000);
+      setLoading(false);
     }
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <Button
-        onClick={handleSync}
-        variant="outline"
-        size="sm"
-        loading={status === "loading"}
-        icon={<SyncIcon />}
-      >
-        {status === "loading" ? "Sincronizando…" : "Traer desde Sheet"}
-      </Button>
-      {status === "ok"    && <span className="text-xs text-success-600 font-medium">✓ {result}</span>}
-      {status === "error" && <span className="text-xs text-danger-500 font-medium">✗ Error</span>}
-    </div>
+    <Button
+      onClick={handleSync}
+      variant="outline"
+      size="sm"
+      loading={loading}
+      icon={<SyncIcon />}
+    >
+      {loading ? "Sincronizando…" : "Traer desde Sheet"}
+    </Button>
   );
 }
 
 export function SyncToSheetButton() {
-  const [status, setStatus] = useState<"idle" | "loading" | "ok" | "error">("idle");
-  const [result, setResult] = useState("");
+  const [loading, setLoading] = useState(false);
 
   async function handleSync() {
-    setStatus("loading");
-    setResult("");
+    setLoading(true);
+    const toastId = toast.loading("Subiendo a Sheet…");
     try {
       const data = await fetch("/api/sync-to-sheet").then((r) => r.json());
       const parts: string[] = [];
       if (data.updated > 0) parts.push(`${data.updated} actualizadas`);
       if (data.created > 0) parts.push(`${data.created} nuevas`);
-      setResult(parts.length > 0 ? parts.join(", ") : "Todo al día");
-      setStatus("ok");
+
+      toast.success("Sheet actualizado", {
+        id: toastId,
+        description: parts.length > 0 ? parts.join(", ") : "Todo al día",
+      });
     } catch {
-      setStatus("error");
+      toast.error("Error al subir", {
+        id: toastId,
+        description: "Intentá nuevamente",
+      });
     } finally {
-      setTimeout(() => setStatus("idle"), 5000);
+      setLoading(false);
     }
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <Button
-        onClick={handleSync}
-        variant="secondary"
-        size="sm"
-        loading={status === "loading"}
-        icon={<UploadIcon />}
-      >
-        {status === "loading" ? "Subiendo…" : "Subir a Sheet"}
-      </Button>
-      {status === "ok"    && <span className="text-xs text-success-600 font-medium">✓ {result}</span>}
-      {status === "error" && <span className="text-xs text-danger-500 font-medium">✗ Error</span>}
-    </div>
+    <Button
+      onClick={handleSync}
+      variant="secondary"
+      size="sm"
+      loading={loading}
+      icon={<UploadIcon />}
+    >
+      {loading ? "Subiendo…" : "Subir a Sheet"}
+    </Button>
   );
 }
 

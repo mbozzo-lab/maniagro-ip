@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import Topbar from "@/components/Topbar";
+import GlobalSearch from "@/shared/ui/components/GlobalSearch";
 
 export default async function DashboardLayout({
   children,
@@ -19,6 +20,7 @@ export default async function DashboardLayout({
         <main className="flex-1 overflow-y-auto bg-slate-50 p-6">
           {children}
         </main>
+        <GlobalSearch />
       </div>
     </div>
   );
