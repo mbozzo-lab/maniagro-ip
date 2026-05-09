@@ -66,7 +66,7 @@ export default function FiltrosSolicitudes({ asignados, plantas }: Props) {
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-card">
-      <div className="flex flex-wrap items-end gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3">
         {/* Search */}
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-slate-500">Buscar</label>
