@@ -2,6 +2,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import DashboardCharts from "@/components/DashboardCharts";
 import DashboardFiltroResponsable from "@/components/DashboardFiltroResponsable";
+import PDFDownloadButton from "@/components/PDFDownloadButton";
+import AdvancedAnalytics from "@/features/dashboard/ui/AdvancedAnalytics";
 import Badge from "@/shared/ui/components/Badge";
 import type { Estado } from "@/generated/prisma/client";
 
@@ -76,6 +78,25 @@ async function getBottleneckWords(responsable?: string) {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
     .map(([word, count]) => ({ word, count }));
+}
+
+async function getSolicitudesForAnalytics(responsable?: string) {
+  const rows = await prisma.solicitud.findMany({
+    select: { id: true, proyecto: true, estado: true, avance: true, asignado: true, prioridad: true, fechaFin: true, numero: true },
+    where: asignadoWhere(responsable),
+  });
+  return rows.map((r) => ({
+    ...r,
+    fechaFin: r.fechaFin ? r.fechaFin.toISOString() : null,
+  }));
+}
+
+async function getActividadesForAnalytics() {
+  const rows = await prisma.actividad.findMany({
+    select: { fecha: true },
+    where: { fecha: { not: null } },
+  });
+  return rows.map((r) => ({ fecha: r.fecha ? r.fecha.toISOString() : null }));
 }
 
 async function getProximosVencimientos(responsable?: string) {
@@ -180,12 +201,14 @@ export default async function DashboardPage({
   const { responsable } = await searchParams;
   const session = await auth();
 
-  const [metrics, chartData, bottleneck, vencimientos, responsables] = await Promise.all([
+  const [metrics, chartData, bottleneck, vencimientos, responsables, analyticsData, actividadesAnalytics] = await Promise.all([
     getMetrics(responsable),
     getChartData(responsable),
     getBottleneckWords(responsable),
     getProximosVencimientos(responsable),
     getResponsables(),
+    getSolicitudesForAnalytics(responsable),
+    getActividadesForAnalytics(),
   ]);
 
   const maxCount = bottleneck[0]?.count ?? 1;
@@ -205,7 +228,10 @@ export default async function DashboardPage({
               : "Resumen general de solicitudes de Ingeniería de Procesos"}
           </p>
         </div>
-        <DashboardFiltroResponsable responsables={responsables} />
+        <div className="flex items-center gap-2 flex-wrap">
+          <PDFDownloadButton solicitudes={analyticsData} />
+          <DashboardFiltroResponsable responsables={responsables} />
+        </div>
       </div>
 
       {/* Metric cards */}
@@ -321,6 +347,13 @@ export default async function DashboardPage({
         </div>
 
       </div>
+
+      {/* Advanced analytics */}
+      <div>
+        <h3 className="text-sm font-semibold text-slate-700 mb-4">Analytics avanzado</h3>
+        <AdvancedAnalytics solicitudes={analyticsData} actividades={actividadesAnalytics} />
+      </div>
+
     </div>
   );
 }
