@@ -1,19 +1,23 @@
 "use client";
 
+import { useState } from "react";
 import Card from "@/shared/ui/components/Card";
 import EmptyState from "@/shared/ui/components/EmptyState";
+import FiltrosActividades, { type ActividadFilters } from "@/features/actividades/ui/FiltrosActividades";
+
+const emptyFilters: ActividadFilters = { search: "", estados: [], responsables: [] };
 
 export default function ActividadesBelenPage() {
+  const [filters, setFilters] = useState<ActividadFilters>(emptyFilters);
+
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Actividades — Belén</h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Gestión personal de actividades y tareas
-          </p>
-        </div>
+    <div className="flex flex-col gap-6 max-w-7xl">
+      <div>
+        <h2 className="text-lg font-semibold text-slate-800">Actividades — Belén</h2>
+        <p className="text-sm text-slate-500 mt-0.5">Gestión personal de actividades y tareas</p>
       </div>
+
+      <FiltrosActividades filters={filters} onChange={setFilters} />
 
       <Card>
         <EmptyState
