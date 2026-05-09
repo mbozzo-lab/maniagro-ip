@@ -173,8 +173,18 @@ model UserPreferences {
   dashboardLayout Json?
   notifications   Json?
   theme           String   @default("light")
+  profilePicture  String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+model ObjetivoConfig {
+  id               Int      @id @default(autoincrement())
+  mision           String   @db.Text
+  objetivosAnuales Json
+  informes         Json
+  updatedBy        String
+  updatedAt        DateTime @default(now())
 }
 
 model ActivityLog {

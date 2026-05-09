@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import MultiSelect from "@/shared/ui/components/MultiSelect";
 
 type Props = { responsables: string[] };
 
@@ -8,29 +9,30 @@ export default function DashboardFiltroResponsable({ responsables }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const current = searchParams.get("responsable") ?? "";
 
-  function handleChange(value: string) {
+  const current = (searchParams.get("responsables") ?? "")
+    .split(",")
+    .filter(Boolean);
+
+  function handleChange(values: string[]) {
     const params = new URLSearchParams(searchParams.toString());
-    if (value) {
-      params.set("responsable", value);
+    if (values.length > 0) {
+      params.set("responsables", values.join(","));
     } else {
-      params.delete("responsable");
+      params.delete("responsables");
     }
     const qs = params.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname);
   }
 
   return (
-    <select
-      value={current}
-      onChange={(e) => handleChange(e.target.value)}
-      className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-green bg-white"
-    >
-      <option value="">Todos los responsables</option>
-      {responsables.map((r) => (
-        <option key={r} value={r}>{r}</option>
-      ))}
-    </select>
+    <div className="w-56">
+      <MultiSelect
+        options={responsables.map((r) => ({ value: r, label: r }))}
+        value={current}
+        onChange={handleChange}
+        placeholder="Todos los responsables"
+      />
+    </div>
   );
 }

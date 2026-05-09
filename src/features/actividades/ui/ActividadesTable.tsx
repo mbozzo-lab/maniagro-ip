@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import type { Actividad } from "@/generated/prisma/client";
 import Modal from "@/shared/ui/components/Modal";
+import MultiSelect from "@/shared/ui/components/MultiSelect";
 
 type ActividadRow = Actividad & {
   solicitud: { id: number; proyecto: string; numero: number | null } | null;
@@ -115,8 +116,9 @@ export default function ActividadesTable({
   const [editingCell, setEditingCell] = useState<{ id: number; field: string } | null>(null);
 
   const [filters, setFilters] = useState({
-    orden: "", proyecto: "", detalle: "", linea: "", plazo: "", estado: "", comentario: "",
+    orden: "", proyecto: "", detalle: "", linea: "", plazo: "", comentario: "",
   });
+  const [estadoFilter, setEstadoFilter] = useState<string[]>([]);
   const [sortField, setSortField] = useState<SortField>("orden");
   const [sortDir,   setSortDir]   = useState<SortDir>("asc");
 
@@ -212,13 +214,13 @@ export default function ActividadesTable({
   const visible = useMemo(() => {
     const f = filters;
     const filtered = rows.filter((a) => {
-      if (f.orden    && !String(a.orden ?? "").includes(f.orden))                                   return false;
+      if (f.orden    && !String(a.orden ?? "").includes(f.orden))                                       return false;
       if (f.proyecto && !(a.solicitud?.proyecto ?? "").toLowerCase().includes(f.proyecto.toLowerCase())) return false;
-      if (f.detalle  && !a.detalle.toLowerCase().includes(f.detalle.toLowerCase()))                  return false;
-      if (f.linea    && !(a.linea ?? "").toLowerCase().includes(f.linea.toLowerCase()))              return false;
-      if (f.plazo    && !(a.plazo ?? "").toLowerCase().includes(f.plazo.toLowerCase()))              return false;
-      if (f.estado   && !a.estado.toLowerCase().includes(f.estado.toLowerCase()))                    return false;
-      if (f.comentario && !(a.comentario ?? "").toLowerCase().includes(f.comentario.toLowerCase()))  return false;
+      if (f.detalle  && !a.detalle.toLowerCase().includes(f.detalle.toLowerCase()))                      return false;
+      if (f.linea    && !(a.linea ?? "").toLowerCase().includes(f.linea.toLowerCase()))                  return false;
+      if (f.plazo    && !(a.plazo ?? "").toLowerCase().includes(f.plazo.toLowerCase()))                  return false;
+      if (estadoFilter.length > 0 && !estadoFilter.includes(a.estado))                                  return false;
+      if (f.comentario && !(a.comentario ?? "").toLowerCase().includes(f.comentario.toLowerCase()))      return false;
       return true;
     });
 
@@ -236,7 +238,7 @@ export default function ActividadesTable({
       if (va > vb) return sortDir === "asc" ?  1 : -1;
       return 0;
     });
-  }, [rows, filters, sortField, sortDir]);
+  }, [rows, filters, estadoFilter, sortField, sortDir]);
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   const isEditing = (id: number, field: string) =>
@@ -250,6 +252,8 @@ export default function ActividadesTable({
   function setFilter(key: keyof typeof filters, val: string) {
     setFilters((f) => ({ ...f, [key]: val }));
   }
+
+  const estadoMultiOptions = estadoOptions.map((o) => ({ value: o.value, label: o.label }));
 
   const thSort = (label: string, field: SortField) => (
     <div
@@ -314,10 +318,16 @@ export default function ActividadesTable({
                 onChange={(e) => setFilter("plazo", e.target.value)} className={filterInput} />
             </th>
             {/* Estado */}
-            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">
+            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase" style={{ minWidth: 160 }}>
               {thSort("Estado", "estado")}
-              <input type="text" placeholder="Filtrar..." value={filters.estado}
-                onChange={(e) => setFilter("estado", e.target.value)} className={filterInput} />
+              <div className="mt-1">
+                <MultiSelect
+                  options={estadoMultiOptions}
+                  value={estadoFilter}
+                  onChange={setEstadoFilter}
+                  placeholder="Todos"
+                />
+              </div>
             </th>
             {/* Comentario */}
             <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase" style={{ minWidth: 180 }}>

@@ -9,8 +9,10 @@ import type { Estado } from "@/generated/prisma/client";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function asignadoWhere(responsable?: string) {
-  return responsable ? { asignado: responsable } : {};
+function asignadoWhere(responsables?: string[]) {
+  if (!responsables || responsables.length === 0) return {};
+  if (responsables.length === 1) return { asignado: responsables[0] };
+  return { asignado: { in: responsables } };
 }
 
 // ─── Data fetchers (all accept an optional responsable filter) ────────────────
@@ -25,8 +27,8 @@ async function getResponsables() {
   return rows.map((r) => r.asignado!).filter(Boolean);
 }
 
-async function getMetrics(responsable?: string) {
-  const base = asignadoWhere(responsable);
+async function getMetrics(responsables?: string[]) {
+  const base = asignadoWhere(responsables);
   const [total, noIniciado, enProceso, retrasado, enRevision, finalizado, anulado] =
     await Promise.all([
       prisma.solicitud.count({ where: { ...base } }),
@@ -53,10 +55,10 @@ const STOPWORDS = new Set([
   "del","las","los","unos","unas","ser","sido","está","están","estaba",
 ]);
 
-async function getBottleneckWords(responsable?: string) {
+async function getBottleneckWords(responsables?: string[]) {
   const rows = await prisma.solicitud.findMany({
     select: { detalle: true, comentario: true },
-    where: asignadoWhere(responsable),
+    where: asignadoWhere(responsables),
   });
 
   const freq: Record<string, number> = {};
@@ -80,10 +82,10 @@ async function getBottleneckWords(responsable?: string) {
     .map(([word, count]) => ({ word, count }));
 }
 
-async function getSolicitudesForAnalytics(responsable?: string) {
+async function getSolicitudesForAnalytics(responsables?: string[]) {
   const rows = await prisma.solicitud.findMany({
     select: { id: true, proyecto: true, estado: true, avance: true, asignado: true, prioridad: true, fechaFin: true, numero: true },
-    where: asignadoWhere(responsable),
+    where: asignadoWhere(responsables),
   });
   return rows.map((r) => ({
     ...r,
@@ -99,7 +101,7 @@ async function getActividadesForAnalytics() {
   return rows.map((r) => ({ fecha: r.fecha ? r.fecha.toISOString() : null }));
 }
 
-async function getProximosVencimientos(responsable?: string) {
+async function getProximosVencimientos(responsables?: string[]) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const in15 = new Date(today);
@@ -107,7 +109,7 @@ async function getProximosVencimientos(responsable?: string) {
 
   return prisma.solicitud.findMany({
     where: {
-      ...asignadoWhere(responsable),
+      ...asignadoWhere(responsables),
       fechaFin: { gte: today, lte: in15 },
       estado: { notIn: ["ANULADO", "FINALIZADO"] as Estado[] },
     },
@@ -116,10 +118,10 @@ async function getProximosVencimientos(responsable?: string) {
   });
 }
 
-async function getChartData(responsable?: string) {
+async function getChartData(responsables?: string[]) {
   const all = await prisma.solicitud.findMany({
     select: { estado: true, prioridad: true, asignado: true },
-    where: asignadoWhere(responsable),
+    where: asignadoWhere(responsables),
   });
 
   const estadoMap: Record<string, { label: string; color: string }> = {
@@ -196,18 +198,19 @@ const BAR_COLORS = ["#166534","#16a34a","#4ade80","#86efac","#bbf7d0"];
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ responsable?: string }>;
+  searchParams: Promise<{ responsables?: string }>;
 }) {
-  const { responsable } = await searchParams;
+  const { responsables: responsablesParam } = await searchParams;
+  const responsableArr = responsablesParam ? responsablesParam.split(",").filter(Boolean) : undefined;
   const session = await auth();
 
   const [metrics, chartData, bottleneck, vencimientos, responsables, analyticsData, actividadesAnalytics] = await Promise.all([
-    getMetrics(responsable),
-    getChartData(responsable),
-    getBottleneckWords(responsable),
-    getProximosVencimientos(responsable),
+    getMetrics(responsableArr),
+    getChartData(responsableArr),
+    getBottleneckWords(responsableArr),
+    getProximosVencimientos(responsableArr),
     getResponsables(),
-    getSolicitudesForAnalytics(responsable),
+    getSolicitudesForAnalytics(responsableArr),
     getActividadesForAnalytics(),
   ]);
 
@@ -223,8 +226,8 @@ export default async function DashboardPage({
             Bienvenido, {session?.user.name?.split(" ")[0]}
           </h2>
           <p className="text-sm text-slate-500">
-            {responsable
-              ? <>Mostrando datos de <span className="font-medium text-slate-700">{responsable}</span></>
+            {responsableArr && responsableArr.length > 0
+              ? <>Mostrando datos de <span className="font-medium text-slate-700">{responsableArr.join(", ")}</span></>
               : "Resumen general de solicitudes de Ingeniería de Procesos"}
           </p>
         </div>
