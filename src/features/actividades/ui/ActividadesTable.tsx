@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { toast } from "sonner";
 import type { Actividad } from "@/generated/prisma/client";
+import Modal from "@/shared/ui/components/Modal";
 
 type ActividadRow = Actividad & {
   solicitud: { id: number; proyecto: string; numero: number | null } | null;
@@ -118,6 +120,10 @@ export default function ActividadesTable({
   const [sortField, setSortField] = useState<SortField>("orden");
   const [sortDir,   setSortDir]   = useState<SortDir>("asc");
 
+  const [showNotifyModal,    setShowNotifyModal]    = useState(false);
+  const [selectedForReview,  setSelectedForReview]  = useState<ActividadRow | null>(null);
+  const [sendingNotification, setSendingNotification] = useState(false);
+
   // ── Sort handler ──────────────────────────────────────────────────────────
   function handleSort(field: SortField) {
     if (sortField === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -159,6 +165,36 @@ export default function ActividadesTable({
     } catch {
       console.error("Error guardando campo");
     }
+  }
+
+  // ── Notify + mark as revisar ─────────────────────────────────────────────
+  async function handleNotifyAndMark(notify: boolean) {
+    if (!selectedForReview) return;
+    setSendingNotification(true);
+
+    if (notify) {
+      try {
+        const res = await fetch("/api/notify-review", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            detalle: selectedForReview.detalle,
+            proyecto: selectedForReview.solicitud?.proyecto ?? null,
+            estado: selectedForReview.estado,
+            plazo: selectedForReview.plazo ?? null,
+          }),
+        });
+        if (!res.ok) throw new Error("Error al enviar");
+        toast.success("Notificación enviada a mbozzo@maniagro.com");
+      } catch {
+        toast.error("No se pudo enviar la notificación");
+      }
+    }
+
+    await saveImmediate(selectedForReview.id, "revisar", true);
+    setShowNotifyModal(false);
+    setSelectedForReview(null);
+    setSendingNotification(false);
   }
 
   // ── Delete ────────────────────────────────────────────────────────────────
@@ -226,6 +262,23 @@ export default function ActividadesTable({
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
+    <>
+    <Modal
+      open={showNotifyModal}
+      title="Marcar para revisar"
+      description={`¿Querés enviar una notificación por email a mbozzo@maniagro.com sobre esta actividad?`}
+      confirmLabel="Notificar y marcar"
+      cancelLabel="Solo marcar"
+      loading={sendingNotification}
+      onConfirm={() => handleNotifyAndMark(true)}
+      onCancel={() => handleNotifyAndMark(false)}
+    >
+      {selectedForReview && (
+        <p className="text-sm text-slate-700 bg-slate-50 rounded-lg px-3 py-2 font-medium">
+          {selectedForReview.detalle}
+        </p>
+      )}
+    </Modal>
     <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm bg-white">
       <table className="w-full text-sm border-collapse">
         <thead>
@@ -379,12 +432,19 @@ export default function ActividadesTable({
                     />
                   </td>
 
-                  {/* Revisar — checkbox directo */}
+                  {/* Revisar — checkbox con modal de notificación al marcar */}
                   <td className="px-3 py-2 text-center">
                     <input
                       type="checkbox"
                       checked={a.revisar}
-                      onChange={(e) => saveImmediate(a.id, "revisar", e.target.checked)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedForReview(a);
+                          setShowNotifyModal(true);
+                        } else {
+                          saveImmediate(a.id, "revisar", false);
+                        }
+                      }}
                       className="w-4 h-4 accent-emerald-500 cursor-pointer"
                     />
                   </td>
@@ -419,5 +479,6 @@ export default function ActividadesTable({
         </tbody>
       </table>
     </div>
+    </>
   );
 }

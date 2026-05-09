@@ -66,7 +66,7 @@ export default function NuevaActividadForm({
       });
 
       if (!res.ok) throw new Error(await res.text());
-      router.push("/actividades");
+      router.push("/actividades/francisco");
       router.refresh();
     } catch (err) {
       setError(String(err));
@@ -220,7 +220,7 @@ export default function NuevaActividadForm({
           {saving ? "Guardando…" : "Crear actividad"}
         </button>
         <a
-          href="/actividades"
+          href="/actividades/francisco"
           className="px-5 py-2 bg-white border border-slate-200 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50"
         >
           Cancelar

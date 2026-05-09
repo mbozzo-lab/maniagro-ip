@@ -14,7 +14,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex h-screen overflow-hidden">
-      <Sidebar role={session.user.role} />
+      <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Topbar title="Maniagro – Ingeniería de Procesos" />
         <main className="flex-1 overflow-y-auto bg-slate-50 p-6">
