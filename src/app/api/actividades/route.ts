@@ -22,17 +22,18 @@ export async function POST(request: Request) {
 
   const actividad = await prisma.actividad.create({
     data: {
-      detalle:     body.detalle,
-      linea:       body.linea       || null,
-      responsable: body.responsable || "Francisco",
-      estado:      body.estado      || "NO_INICIADO",
-      plazo:       body.plazo       || null,
-      orden:       body.orden != null ? Number(body.orden) : null,
-      comentario:  body.comentario  || null,
-      revisar:     body.revisar     ?? false,
-      fecha:       body.fecha ? new Date(body.fecha) : null,
-      solicitudId: body.solicitudId || null,
-      owner:       body.owner       || null,
+      detalle:        body.detalle,
+      linea:          body.linea          || null,
+      responsable:    body.responsable    || "Francisco",
+      estado:         body.estado         || "NO_INICIADO",
+      plazo:          body.plazo          || null,
+      orden:          body.orden != null ? Number(body.orden) : null,
+      comentario:     body.comentario     || null,
+      revisar:        body.revisar        ?? false,
+      fecha:          body.fecha ? new Date(body.fecha) : null,
+      solicitudId:    body.solicitudId    || null,
+      proyectoNombre: body.proyectoNombre || null,
+      owner:          body.owner          || null,
     },
   });
 

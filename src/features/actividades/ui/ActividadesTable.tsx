@@ -107,6 +107,10 @@ function uniqueOptions(values: (string | null | undefined)[]): { value: string; 
     .map((v) => ({ value: v, label: v }));
 }
 
+function proyectoDisplay(a: ActividadRow): string {
+  return a.solicitud?.proyecto ?? (a as ActividadRow & { proyectoNombre?: string | null }).proyectoNombre ?? "";
+}
+
 const filterInput =
   "mt-1 w-full px-2 py-1 text-xs border border-slate-200 rounded focus:outline-none focus:border-emerald-400";
 
@@ -117,9 +121,10 @@ export default function ActividadesTable({
 }: {
   actividades: ActividadRow[];
 }) {
-  const [rows, setRows] = useState<ActividadRow[]>(initial);
-  const [editingCell, setEditingCell] = useState<{ id: number; field: string } | null>(null);
-  const [proyectos, setProyectos] = useState<Array<{ id: number; proyecto: string }>>([]);
+  const [rows, setRows]                       = useState<ActividadRow[]>(initial);
+  const [editingCell, setEditingCell]         = useState<{ id: number; field: string } | null>(null);
+  const [editingProyecto, setEditingProyecto] = useState<number | null>(null);
+  const [proyectos, setProyectos]             = useState<Array<{ id: number; proyecto: string }>>([]);
 
   useEffect(() => {
     fetch("/api/solicitudes-list")
@@ -146,10 +151,10 @@ export default function ActividadesTable({
   const [sendingNotification, setSendingNotification] = useState(false);
 
   // ── Dynamic options derived from data ─────────────────────────────────────
-  const proyectoOptions  = useMemo(() => uniqueOptions(rows.map((a) => a.solicitud?.proyecto)), [rows]);
-  const lineaOptions     = useMemo(() => uniqueOptions(rows.map((a) => a.linea)),               [rows]);
-  const plazoOptions     = useMemo(() => uniqueOptions(rows.map((a) => a.plazo)),               [rows]);
-  const comentarioOptions = useMemo(() => uniqueOptions(rows.map((a) => a.comentario)),         [rows]);
+  const proyectoOptions   = useMemo(() => uniqueOptions(rows.map(proyectoDisplay)),          [rows]);
+  const lineaOptions      = useMemo(() => uniqueOptions(rows.map((a) => a.linea)),            [rows]);
+  const plazoOptions      = useMemo(() => uniqueOptions(rows.map((a) => a.plazo)),            [rows]);
+  const comentarioOptions = useMemo(() => uniqueOptions(rows.map((a) => a.comentario)),       [rows]);
 
   // ── Sort handler ──────────────────────────────────────────────────────────
   function handleSort(field: SortField) {
@@ -189,18 +194,23 @@ export default function ActividadesTable({
     }
   }
 
-  // ── Update proyecto (solicitudId) ────────────────────────────────────────
-  async function updateProyecto(id: number, newSolicitudId: number | null) {
-    const proyecto = proyectos.find((p) => p.id === newSolicitudId) ?? null;
+  // ── Update proyecto: vinculado a solicitud o texto libre ─────────────────
+  async function updateProyecto(
+    id: number,
+    solicitudId: number | null,
+    pNombre: string | null,
+  ) {
+    const sol = proyectos.find((p) => p.id === solicitudId) ?? null;
     setRows((prev) =>
       prev.map((r) =>
         r.id === id
           ? {
               ...r,
-              solicitudId: newSolicitudId,
-              solicitud:   newSolicitudId && proyecto
-                ? { id: newSolicitudId, proyecto: proyecto.proyecto, numero: null }
+              solicitudId,
+              solicitud:      solicitudId && sol
+                ? { id: solicitudId, proyecto: sol.proyecto, numero: null }
                 : null,
+              proyectoNombre: pNombre,
             }
           : r,
       ),
@@ -209,7 +219,7 @@ export default function ActividadesTable({
       await fetch(`/api/actividades/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ solicitudId: newSolicitudId }),
+        body: JSON.stringify({ solicitudId, proyectoNombre: pNombre }),
       });
     } catch {
       console.error("Error actualizando proyecto");
@@ -227,7 +237,7 @@ export default function ActividadesTable({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             detalle:  selectedForReview.detalle,
-            proyecto: selectedForReview.solicitud?.proyecto ?? null,
+            proyecto: proyectoDisplay(selectedForReview) || null,
             estado:   selectedForReview.estado,
             plazo:    selectedForReview.plazo ?? null,
           }),
@@ -259,13 +269,13 @@ export default function ActividadesTable({
   const visible = useMemo(() => {
     const f = filters;
     const filtered = rows.filter((a) => {
-      if (f.orden && !String(a.orden ?? "").includes(f.orden))                           return false;
-      if (f.proyectos.length > 0 && !f.proyectos.includes(a.solicitud?.proyecto ?? "")) return false;
-      if (f.detalle && !a.detalle.toLowerCase().includes(f.detalle.toLowerCase()))       return false;
-      if (f.lineas.length > 0 && !f.lineas.includes(a.linea ?? ""))                     return false;
-      if (f.plazos.length > 0 && !f.plazos.includes(a.plazo ?? ""))                     return false;
-      if (f.estados.length > 0 && !f.estados.includes(a.estado))                        return false;
-      if (f.comentarios.length > 0 && !f.comentarios.includes(a.comentario ?? ""))      return false;
+      if (f.orden && !String(a.orden ?? "").includes(f.orden))                    return false;
+      if (f.proyectos.length > 0 && !f.proyectos.includes(proyectoDisplay(a)))   return false;
+      if (f.detalle && !a.detalle.toLowerCase().includes(f.detalle.toLowerCase())) return false;
+      if (f.lineas.length > 0 && !f.lineas.includes(a.linea ?? ""))               return false;
+      if (f.plazos.length > 0 && !f.plazos.includes(a.plazo ?? ""))               return false;
+      if (f.estados.length > 0 && !f.estados.includes(a.estado))                  return false;
+      if (f.comentarios.length > 0 && !f.comentarios.includes(a.comentario ?? "")) return false;
       return true;
     });
 
@@ -274,7 +284,7 @@ export default function ActividadesTable({
       let va: any, vb: any;
       switch (sortField) {
         case "orden":    va = a.orden ?? 9999;                             vb = b.orden ?? 9999;                             break;
-        case "proyecto": va = a.solicitud?.proyecto ?? "";                 vb = b.solicitud?.proyecto ?? "";                 break;
+        case "proyecto": va = proyectoDisplay(a);                          vb = proyectoDisplay(b);                          break;
         case "detalle":  va = a.detalle;                                  vb = b.detalle;                                   break;
         case "estado":   va = a.estado;                                   vb = b.estado;                                    break;
         case "fecha":    va = a.fecha ? new Date(a.fecha).getTime() : 0;  vb = b.fecha ? new Date(b.fecha).getTime() : 0;  break;
@@ -342,7 +352,7 @@ export default function ActividadesTable({
             </th>
 
             {/* Proyecto */}
-            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">
+            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase" style={{ minWidth: 200 }}>
               {thSort("Proyecto", "proyecto")}
               <div className="mt-1">
                 <MultiSelect
@@ -441,7 +451,8 @@ export default function ActividadesTable({
             </tr>
           ) : (
             visible.map((a) => {
-              const est = estadoConfig[a.estado] ?? estadoConfig.NO_INICIADO;
+              const est     = estadoConfig[a.estado] ?? estadoConfig.NO_INICIADO;
+              const pNombre = (a as ActividadRow & { proyectoNombre?: string | null }).proyectoNombre ?? null;
               return (
                 <tr key={a.id} className="border-t border-slate-100 hover:bg-slate-50/50">
                   {/* Orden */}
@@ -456,23 +467,63 @@ export default function ActividadesTable({
                     />
                   </td>
 
-                  {/* Proyecto (select editable) */}
-                  <td className="px-3 py-2">
-                    <select
-                      value={a.solicitudId ?? ""}
-                      onChange={(e) => {
-                        const val = e.target.value ? Number(e.target.value) : null;
-                        updateProyecto(a.id, val);
-                      }}
-                      className="w-full px-2 py-1.5 text-sm border border-slate-200 rounded focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400 bg-white cursor-pointer hover:bg-slate-50 transition-colors"
-                    >
-                      <option value="">Sin vincular</option>
-                      {proyectos.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.proyecto}
-                        </option>
-                      ))}
-                    </select>
+                  {/* Proyecto — input + datalist híbrido */}
+                  <td className="px-3 py-2" style={{ minWidth: 200 }}>
+                    {editingProyecto === a.id ? (
+                      <div className="flex gap-1">
+                        <input
+                          type="text"
+                          list={`proyectos-${a.id}`}
+                          defaultValue={a.solicitud?.proyecto ?? pNombre ?? ""}
+                          autoFocus
+                          onBlur={(e) => {
+                            const val = e.target.value.trim();
+                            const match = proyectos.find(
+                              (p) => p.proyecto.toLowerCase() === val.toLowerCase(),
+                            );
+                            if (match) {
+                              updateProyecto(a.id, match.id, null);
+                            } else {
+                              updateProyecto(a.id, null, val || null);
+                            }
+                            setEditingProyecto(null);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") e.currentTarget.blur();
+                            if (e.key === "Escape") setEditingProyecto(null);
+                          }}
+                          className="flex-1 px-2 py-1.5 text-sm border border-emerald-400 rounded focus:outline-none bg-white"
+                        />
+                        <datalist id={`proyectos-${a.id}`}>
+                          {proyectos.map((p) => (
+                            <option key={p.id} value={p.proyecto} />
+                          ))}
+                        </datalist>
+                        <button
+                          onClick={() => setEditingProyecto(null)}
+                          className="px-2 text-slate-400 hover:text-slate-600 text-base leading-none"
+                          title="Cancelar"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <div
+                        onClick={() => setEditingProyecto(a.id)}
+                        title="Click para editar"
+                        className="cursor-pointer hover:bg-emerald-50 px-1 py-0.5 rounded min-h-[24px]"
+                      >
+                        {a.solicitud ? (
+                          <span className="text-sm text-emerald-700 font-medium">
+                            {a.solicitud.proyecto}
+                          </span>
+                        ) : pNombre ? (
+                          <span className="text-sm text-slate-700">{pNombre}</span>
+                        ) : (
+                          <span className="text-slate-300 text-sm">—</span>
+                        )}
+                      </div>
+                    )}
                   </td>
 
                   {/* Detalle */}

@@ -149,9 +149,10 @@ model CriterioClasificacion {
 
 model Actividad {
   id          Int        @id @default(autoincrement())
-  solicitudId Int?
-  solicitud   Solicitud? @relation(fields: [solicitudId], references: [id])
-  detalle     String
+  solicitudId    Int?
+  solicitud      Solicitud? @relation(fields: [solicitudId], references: [id])
+  proyectoNombre String?
+  detalle        String
   linea       String?
   responsable String
   estado      Estado     @default(NO_INICIADO)

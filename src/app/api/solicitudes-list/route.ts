@@ -9,7 +9,6 @@ export async function GET() {
   }
 
   const solicitudes = await prisma.solicitud.findMany({
-    where: { activo: true },
     select: { id: true, proyecto: true },
     orderBy: { proyecto: "asc" },
   });

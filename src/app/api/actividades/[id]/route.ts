@@ -14,16 +14,17 @@ export async function PATCH(
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const data: Record<string, any> = {};
-  if (body.detalle     !== undefined) data.detalle     = body.detalle;
-  if (body.linea       !== undefined) data.linea       = body.linea       || null;
-  if (body.responsable !== undefined) data.responsable = body.responsable;
-  if (body.estado      !== undefined) data.estado      = body.estado;
-  if (body.plazo       !== undefined) data.plazo       = body.plazo       || null;
-  if (body.orden       !== undefined) data.orden       = body.orden != null ? Number(body.orden) : null;
-  if (body.comentario  !== undefined) data.comentario  = body.comentario  || null;
-  if (body.revisar     !== undefined) data.revisar     = Boolean(body.revisar);
-  if (body.fecha       !== undefined) data.fecha       = body.fecha ? new Date(body.fecha) : null;
-  if (body.solicitudId !== undefined) data.solicitudId = body.solicitudId || null;
+  if (body.detalle        !== undefined) data.detalle        = body.detalle;
+  if (body.linea          !== undefined) data.linea          = body.linea          || null;
+  if (body.responsable    !== undefined) data.responsable    = body.responsable;
+  if (body.estado         !== undefined) data.estado         = body.estado;
+  if (body.plazo          !== undefined) data.plazo          = body.plazo          || null;
+  if (body.orden          !== undefined) data.orden          = body.orden != null ? Number(body.orden) : null;
+  if (body.comentario     !== undefined) data.comentario     = body.comentario     || null;
+  if (body.revisar        !== undefined) data.revisar        = Boolean(body.revisar);
+  if (body.fecha          !== undefined) data.fecha          = body.fecha ? new Date(body.fecha) : null;
+  if (body.solicitudId    !== undefined) data.solicitudId    = body.solicitudId    || null;
+  if (body.proyectoNombre !== undefined) data.proyectoNombre = body.proyectoNombre || null;
 
   const actividad = await prisma.actividad.update({
     where: { id: Number(id) },
