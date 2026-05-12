@@ -199,3 +199,18 @@ model ActivityLog {
   changes    Json?
   timestamp  DateTime @default(now())
 }
+
+model DailyNote {
+  id         Int      @id @default(autoincrement())
+  userId     String
+  userName   String
+  fecha      DateTime
+  hora       String?
+  contenido  String
+  completada Boolean  @default(false)
+  prioridad  String   @default("MEDIA")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId, fecha])
+}
