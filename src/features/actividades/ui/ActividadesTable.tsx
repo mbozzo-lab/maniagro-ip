@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
 import type { Actividad } from "@/generated/prisma/client";
 import Modal from "@/shared/ui/components/Modal";
@@ -119,6 +119,14 @@ export default function ActividadesTable({
 }) {
   const [rows, setRows] = useState<ActividadRow[]>(initial);
   const [editingCell, setEditingCell] = useState<{ id: number; field: string } | null>(null);
+  const [proyectos, setProyectos] = useState<Array<{ id: number; proyecto: string }>>([]);
+
+  useEffect(() => {
+    fetch("/api/solicitudes-list")
+      .then((res) => res.json())
+      .then((data) => setProyectos(data))
+      .catch(() => {});
+  }, []);
 
   const [filters, setFilters] = useState({
     orden:       "",
@@ -178,6 +186,33 @@ export default function ActividadesTable({
       });
     } catch {
       console.error("Error guardando campo");
+    }
+  }
+
+  // ── Update proyecto (solicitudId) ────────────────────────────────────────
+  async function updateProyecto(id: number, newSolicitudId: number | null) {
+    const proyecto = proyectos.find((p) => p.id === newSolicitudId) ?? null;
+    setRows((prev) =>
+      prev.map((r) =>
+        r.id === id
+          ? {
+              ...r,
+              solicitudId: newSolicitudId,
+              solicitud:   newSolicitudId && proyecto
+                ? { id: newSolicitudId, proyecto: proyecto.proyecto, numero: null }
+                : null,
+            }
+          : r,
+      ),
+    );
+    try {
+      await fetch(`/api/actividades/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ solicitudId: newSolicitudId }),
+      });
+    } catch {
+      console.error("Error actualizando proyecto");
     }
   }
 
@@ -421,18 +456,23 @@ export default function ActividadesTable({
                     />
                   </td>
 
-                  {/* Proyecto (read-only link) */}
+                  {/* Proyecto (select editable) */}
                   <td className="px-3 py-2">
-                    {a.solicitud ? (
-                      <a
-                        href={`/solicitudes/${a.solicitud.id}`}
-                        className="text-emerald-600 hover:text-emerald-700 hover:underline font-medium text-sm"
-                      >
-                        {a.solicitud.proyecto}
-                      </a>
-                    ) : (
-                      <span className="text-slate-400 italic text-sm">Sin vincular</span>
-                    )}
+                    <select
+                      value={a.solicitudId ?? ""}
+                      onChange={(e) => {
+                        const val = e.target.value ? Number(e.target.value) : null;
+                        updateProyecto(a.id, val);
+                      }}
+                      className="w-full px-2 py-1.5 text-sm border border-slate-200 rounded focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400 bg-white cursor-pointer hover:bg-slate-50 transition-colors"
+                    >
+                      <option value="">Sin vincular</option>
+                      {proyectos.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.proyecto}
+                        </option>
+                      ))}
+                    </select>
                   </td>
 
                   {/* Detalle */}
