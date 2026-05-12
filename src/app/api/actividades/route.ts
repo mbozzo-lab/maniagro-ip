@@ -32,6 +32,7 @@ export async function POST(request: Request) {
       revisar:     body.revisar     ?? false,
       fecha:       body.fecha ? new Date(body.fecha) : null,
       solicitudId: body.solicitudId || null,
+      owner:       body.owner       || null,
     },
   });
 

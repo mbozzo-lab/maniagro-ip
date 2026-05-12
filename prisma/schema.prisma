@@ -162,6 +162,7 @@ model Actividad {
   revisar     Boolean    @default(false)
   fecha       DateTime?
   sheetRow    Int?
+  owner       String?
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 }

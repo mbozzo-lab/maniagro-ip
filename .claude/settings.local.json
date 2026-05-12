@@ -6,10 +6,13 @@
       "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\Mbozzo\\\\maniagro-ip\\\\src\" -Recurse -Force | Select-Object FullName | ForEach-Object { $_.FullName -replace [regex]::Escape\\(\"C:\\\\Users\\\\Mbozzo\\\\maniagro-ip\"\\), \"\" } | Sort-Object)",
       "Bash(echo \"EXIT:$?\")",
       "Bash(node -e ' *)",
-      "Bash(npm create *)"
+      "Bash(npm create *)",
+      "PowerShell(New-Item -ItemType Directory -Path \"c:\\\\Users\\\\Mbozzo\\\\maniagro-ip\\\\src\\\\features\\\\dashboard\\\\ui\" -Force)",
+      "PowerShell(New-Item -ItemType Directory -Path \"c:\\\\Users\\\\Mbozzo\\\\maniagro-ip\\\\src\\\\features\\\\solicitudes\\\\ui\" -Force)"
     ],
     "additionalDirectories": [
-      "C:\\Users\\Mbozzo\\cleaning-scheduler"
+      "C:\\Users\\Mbozzo\\cleaning-scheduler",
+      "c:\\Users\\Mbozzo\\maniagro-ip\\src\\app\\api\\solicitudes"
     ]
   }
 }

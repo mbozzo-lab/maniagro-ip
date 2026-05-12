@@ -36,13 +36,12 @@ type EditableCellProps = {
   value: string | number | null | undefined;
   isEditing: boolean;
   type?: "text" | "number" | "date";
-  display?: React.ReactNode; // formatted display; falls back to String(value)
+  display?: React.ReactNode;
   onStartEdit: () => void;
   onSave: (raw: string) => void;
   onCancel: () => void;
 };
 
-// React import needed for ReactNode type
 import type React from "react";
 
 function EditableCell({
@@ -102,6 +101,12 @@ function toInputDate(val: Date | string | null | undefined): string {
   return new Date(val).toISOString().split("T")[0];
 }
 
+function uniqueOptions(values: (string | null | undefined)[]): { value: string; label: string }[] {
+  return [...new Set(values.filter((v): v is string => !!v))]
+    .sort()
+    .map((v) => ({ value: v, label: v }));
+}
+
 const filterInput =
   "mt-1 w-full px-2 py-1 text-xs border border-slate-200 rounded focus:outline-none focus:border-emerald-400";
 
@@ -116,15 +121,27 @@ export default function ActividadesTable({
   const [editingCell, setEditingCell] = useState<{ id: number; field: string } | null>(null);
 
   const [filters, setFilters] = useState({
-    orden: "", proyecto: "", detalle: "", linea: "", plazo: "", comentario: "",
+    orden:       "",
+    proyectos:   [] as string[],
+    detalle:     "",
+    lineas:      [] as string[],
+    plazos:      [] as string[],
+    estados:     [] as string[],
+    comentarios: [] as string[],
   });
-  const [estadoFilter, setEstadoFilter] = useState<string[]>([]);
+
   const [sortField, setSortField] = useState<SortField>("orden");
   const [sortDir,   setSortDir]   = useState<SortDir>("asc");
 
-  const [showNotifyModal,    setShowNotifyModal]    = useState(false);
-  const [selectedForReview,  setSelectedForReview]  = useState<ActividadRow | null>(null);
+  const [showNotifyModal,     setShowNotifyModal]     = useState(false);
+  const [selectedForReview,   setSelectedForReview]   = useState<ActividadRow | null>(null);
   const [sendingNotification, setSendingNotification] = useState(false);
+
+  // ── Dynamic options derived from data ─────────────────────────────────────
+  const proyectoOptions  = useMemo(() => uniqueOptions(rows.map((a) => a.solicitud?.proyecto)), [rows]);
+  const lineaOptions     = useMemo(() => uniqueOptions(rows.map((a) => a.linea)),               [rows]);
+  const plazoOptions     = useMemo(() => uniqueOptions(rows.map((a) => a.plazo)),               [rows]);
+  const comentarioOptions = useMemo(() => uniqueOptions(rows.map((a) => a.comentario)),         [rows]);
 
   // ── Sort handler ──────────────────────────────────────────────────────────
   function handleSort(field: SortField) {
@@ -135,15 +152,10 @@ export default function ActividadesTable({
   // ── Save a field value ────────────────────────────────────────────────────
   async function saveField(id: number, field: string, raw: string) {
     setEditingCell(null);
-
-    // Coerce type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let value: any = raw === "" ? null : raw;
     if (field === "orden") value = raw === "" ? null : Number(raw);
-
-    // Optimistic update
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, [field]: value } : r)));
-
     try {
       await fetch(`/api/actividades/${id}`, {
         method: "PATCH",
@@ -173,26 +185,24 @@ export default function ActividadesTable({
   async function handleNotifyAndMark(notify: boolean) {
     if (!selectedForReview) return;
     setSendingNotification(true);
-
     if (notify) {
       try {
         const res = await fetch("/api/notify-review", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            detalle: selectedForReview.detalle,
+            detalle:  selectedForReview.detalle,
             proyecto: selectedForReview.solicitud?.proyecto ?? null,
-            estado: selectedForReview.estado,
-            plazo: selectedForReview.plazo ?? null,
+            estado:   selectedForReview.estado,
+            plazo:    selectedForReview.plazo ?? null,
           }),
         });
-        if (!res.ok) throw new Error("Error al enviar");
+        if (!res.ok) throw new Error();
         toast.success("Notificación enviada a mbozzo@maniagro.com");
       } catch {
         toast.error("No se pudo enviar la notificación");
       }
     }
-
     await saveImmediate(selectedForReview.id, "revisar", true);
     setShowNotifyModal(false);
     setSelectedForReview(null);
@@ -214,13 +224,13 @@ export default function ActividadesTable({
   const visible = useMemo(() => {
     const f = filters;
     const filtered = rows.filter((a) => {
-      if (f.orden    && !String(a.orden ?? "").includes(f.orden))                                       return false;
-      if (f.proyecto && !(a.solicitud?.proyecto ?? "").toLowerCase().includes(f.proyecto.toLowerCase())) return false;
-      if (f.detalle  && !a.detalle.toLowerCase().includes(f.detalle.toLowerCase()))                      return false;
-      if (f.linea    && !(a.linea ?? "").toLowerCase().includes(f.linea.toLowerCase()))                  return false;
-      if (f.plazo    && !(a.plazo ?? "").toLowerCase().includes(f.plazo.toLowerCase()))                  return false;
-      if (estadoFilter.length > 0 && !estadoFilter.includes(a.estado))                                  return false;
-      if (f.comentario && !(a.comentario ?? "").toLowerCase().includes(f.comentario.toLowerCase()))      return false;
+      if (f.orden && !String(a.orden ?? "").includes(f.orden))                           return false;
+      if (f.proyectos.length > 0 && !f.proyectos.includes(a.solicitud?.proyecto ?? "")) return false;
+      if (f.detalle && !a.detalle.toLowerCase().includes(f.detalle.toLowerCase()))       return false;
+      if (f.lineas.length > 0 && !f.lineas.includes(a.linea ?? ""))                     return false;
+      if (f.plazos.length > 0 && !f.plazos.includes(a.plazo ?? ""))                     return false;
+      if (f.estados.length > 0 && !f.estados.includes(a.estado))                        return false;
+      if (f.comentarios.length > 0 && !f.comentarios.includes(a.comentario ?? ""))      return false;
       return true;
     });
 
@@ -228,32 +238,28 @@ export default function ActividadesTable({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let va: any, vb: any;
       switch (sortField) {
-        case "orden":    va = a.orden ?? 9999;                              vb = b.orden ?? 9999;                              break;
-        case "proyecto": va = a.solicitud?.proyecto ?? "";                  vb = b.solicitud?.proyecto ?? "";                  break;
-        case "detalle":  va = a.detalle;                                   vb = b.detalle;                                    break;
-        case "estado":   va = a.estado;                                    vb = b.estado;                                     break;
-        case "fecha":    va = a.fecha ? new Date(a.fecha).getTime() : 0;   vb = b.fecha ? new Date(b.fecha).getTime() : 0;    break;
+        case "orden":    va = a.orden ?? 9999;                             vb = b.orden ?? 9999;                             break;
+        case "proyecto": va = a.solicitud?.proyecto ?? "";                 vb = b.solicitud?.proyecto ?? "";                 break;
+        case "detalle":  va = a.detalle;                                  vb = b.detalle;                                   break;
+        case "estado":   va = a.estado;                                   vb = b.estado;                                    break;
+        case "fecha":    va = a.fecha ? new Date(a.fecha).getTime() : 0;  vb = b.fecha ? new Date(b.fecha).getTime() : 0;  break;
       }
       if (va < vb) return sortDir === "asc" ? -1 : 1;
       if (va > vb) return sortDir === "asc" ?  1 : -1;
       return 0;
     });
-  }, [rows, filters, estadoFilter, sortField, sortDir]);
+  }, [rows, filters, sortField, sortDir]);
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   const isEditing = (id: number, field: string) =>
     editingCell?.id === id && editingCell?.field === field;
 
-  const startEdit = (id: number, field: string) =>
-    setEditingCell({ id, field });
-
+  const startEdit  = (id: number, field: string) => setEditingCell({ id, field });
   const cancelEdit = () => setEditingCell(null);
 
-  function setFilter(key: keyof typeof filters, val: string) {
+  function setFilter<K extends keyof typeof filters>(key: K, val: typeof filters[K]) {
     setFilters((f) => ({ ...f, [key]: val }));
   }
-
-  const estadoMultiOptions = estadoOptions.map((o) => ({ value: o.value, label: o.label }));
 
   const thSort = (label: string, field: SortField) => (
     <div
@@ -270,7 +276,7 @@ export default function ActividadesTable({
     <Modal
       open={showNotifyModal}
       title="Marcar para revisar"
-      description={`¿Querés enviar una notificación por email a mbozzo@maniagro.com sobre esta actividad?`}
+      description="¿Querés enviar una notificación por email a mbozzo@maniagro.com sobre esta actividad?"
       confirmLabel="Notificar y marcar"
       cancelLabel="Solo marcar"
       loading={sendingNotification}
@@ -283,6 +289,7 @@ export default function ActividadesTable({
         </p>
       )}
     </Modal>
+
     <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm bg-white">
       <table className="w-full text-sm border-collapse">
         <thead>
@@ -290,59 +297,102 @@ export default function ActividadesTable({
             {/* Orden */}
             <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase w-20">
               {thSort("Orden", "orden")}
-              <input type="text" placeholder="Filtrar..." value={filters.orden}
-                onChange={(e) => setFilter("orden", e.target.value)} className={filterInput} />
+              <input
+                type="text"
+                placeholder="Filtrar..."
+                value={filters.orden}
+                onChange={(e) => setFilter("orden", e.target.value)}
+                className={filterInput}
+              />
             </th>
+
             {/* Proyecto */}
             <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">
               {thSort("Proyecto", "proyecto")}
-              <input type="text" placeholder="Filtrar..." value={filters.proyecto}
-                onChange={(e) => setFilter("proyecto", e.target.value)} className={filterInput} />
+              <div className="mt-1">
+                <MultiSelect
+                  options={proyectoOptions}
+                  value={filters.proyectos}
+                  onChange={(val) => setFilter("proyectos", val)}
+                  placeholder="Todos"
+                />
+              </div>
             </th>
+
             {/* Detalle */}
             <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase" style={{ minWidth: 260 }}>
               {thSort("Detalle", "detalle")}
-              <input type="text" placeholder="Filtrar..." value={filters.detalle}
-                onChange={(e) => setFilter("detalle", e.target.value)} className={filterInput} />
+              <input
+                type="text"
+                placeholder="Filtrar..."
+                value={filters.detalle}
+                onChange={(e) => setFilter("detalle", e.target.value)}
+                className={filterInput}
+              />
             </th>
+
             {/* Línea */}
             <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">
               Línea
-              <input type="text" placeholder="Filtrar..." value={filters.linea}
-                onChange={(e) => setFilter("linea", e.target.value)} className={filterInput} />
+              <div className="mt-1">
+                <MultiSelect
+                  options={lineaOptions}
+                  value={filters.lineas}
+                  onChange={(val) => setFilter("lineas", val)}
+                  placeholder="Todas"
+                />
+              </div>
             </th>
+
             {/* Plazo */}
             <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">
               Plazo
-              <input type="text" placeholder="Filtrar..." value={filters.plazo}
-                onChange={(e) => setFilter("plazo", e.target.value)} className={filterInput} />
+              <div className="mt-1">
+                <MultiSelect
+                  options={plazoOptions}
+                  value={filters.plazos}
+                  onChange={(val) => setFilter("plazos", val)}
+                  placeholder="Todos"
+                />
+              </div>
             </th>
+
             {/* Estado */}
             <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase" style={{ minWidth: 160 }}>
               {thSort("Estado", "estado")}
               <div className="mt-1">
                 <MultiSelect
-                  options={estadoMultiOptions}
-                  value={estadoFilter}
-                  onChange={setEstadoFilter}
+                  options={estadoOptions}
+                  value={filters.estados}
+                  onChange={(val) => setFilter("estados", val)}
                   placeholder="Todos"
                 />
               </div>
             </th>
+
             {/* Comentario */}
             <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase" style={{ minWidth: 180 }}>
               Comentario
-              <input type="text" placeholder="Filtrar..." value={filters.comentario}
-                onChange={(e) => setFilter("comentario", e.target.value)} className={filterInput} />
+              <div className="mt-1">
+                <MultiSelect
+                  options={comentarioOptions}
+                  value={filters.comentarios}
+                  onChange={(val) => setFilter("comentarios", val)}
+                  placeholder="Todos"
+                />
+              </div>
             </th>
+
             {/* Revisar */}
             <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 uppercase w-20">
               Revisar
             </th>
+
             {/* Fecha */}
             <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase w-28">
               {thSort("Fecha", "fecha")}
             </th>
+
             {/* Acciones */}
             <th className="px-4 py-3 w-12" />
           </tr>
@@ -418,7 +468,7 @@ export default function ActividadesTable({
                     />
                   </td>
 
-                  {/* Estado — select siempre visible */}
+                  {/* Estado */}
                   <td className="px-3 py-2">
                     <select
                       value={a.estado}
@@ -442,7 +492,7 @@ export default function ActividadesTable({
                     />
                   </td>
 
-                  {/* Revisar — checkbox con modal de notificación al marcar */}
+                  {/* Revisar */}
                   <td className="px-3 py-2 text-center">
                     <input
                       type="checkbox"
