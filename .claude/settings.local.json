@@ -8,11 +8,20 @@
       "Bash(node -e ' *)",
       "Bash(npm create *)",
       "PowerShell(New-Item -ItemType Directory -Path \"c:\\\\Users\\\\Mbozzo\\\\maniagro-ip\\\\src\\\\features\\\\dashboard\\\\ui\" -Force)",
-      "PowerShell(New-Item -ItemType Directory -Path \"c:\\\\Users\\\\Mbozzo\\\\maniagro-ip\\\\src\\\\features\\\\solicitudes\\\\ui\" -Force)"
+      "PowerShell(New-Item -ItemType Directory -Path \"c:\\\\Users\\\\Mbozzo\\\\maniagro-ip\\\\src\\\\features\\\\solicitudes\\\\ui\" -Force)",
+      "Bash(New-Item -ItemType Directory -Force \"c:\\\\Users\\\\Mbozzo\\\\maniagro-ip\\\\src\\\\app\\\\api\\\\minutas\\\\[id]\")",
+      "Bash(Out-Null)",
+      "Bash(New-Item -ItemType Directory -Force \"c:\\\\Users\\\\Mbozzo\\\\maniagro-ip\\\\src\\\\app\\\\api\\\\minutas\\\\[id]\\\\tareas\")",
+      "Bash(New-Item -ItemType Directory -Force \"c:\\\\Users\\\\Mbozzo\\\\maniagro-ip\\\\src\\\\app\\\\api\\\\minutas\\\\tareas\\\\[id]\")",
+      "Bash(Write-Output \"Dirs created\")",
+      "Bash(mkdir -p \"c:/Users/Mbozzo/maniagro-ip/src/app/api/minutas/[id]/tareas\" \"c:/Users/Mbozzo/maniagro-ip/src/app/api/minutas/tareas/[id]\" && echo \"ok\")",
+      "Bash(mkdir -p \"c:/Users/Mbozzo/maniagro-ip/src/app/\\(dashboard\\)/minutas/nueva\" \"c:/Users/Mbozzo/maniagro-ip/src/app/\\(dashboard\\)/minutas/[id]/editar\" \"c:/Users/Mbozzo/maniagro-ip/src/app/\\(dashboard\\)/minutas/tareas\" && echo \"ok\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\Mbozzo\\cleaning-scheduler",
-      "c:\\Users\\Mbozzo\\maniagro-ip\\src\\app\\api\\solicitudes"
+      "c:\\Users\\Mbozzo\\maniagro-ip\\src\\app\\api\\solicitudes",
+      "c:\\Users\\Mbozzo\\maniagro-ip\\src\\app\\api\\minutas\\[id]",
+      "c:\\Users\\Mbozzo\\maniagro-ip\\src\\app\\(dashboard)\\minutas\\[id]"
     ]
   }
 }

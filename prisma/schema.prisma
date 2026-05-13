@@ -215,3 +215,81 @@ model DailyNote {
 
   @@index([userId, fecha])
 }
+
+// ─── Minutas ─────────────────────────────────────────────────────────────────
+
+enum EstadoMinuta {
+  BORRADOR
+  PUBLICADA
+  ARCHIVADA
+}
+
+enum EstadoTarea {
+  PENDIENTE
+  EN_PROGRESO
+  COMPLETADA
+  CANCELADA
+}
+
+enum PrioridadTarea {
+  BAJA
+  MEDIA
+  ALTA
+  URGENTE
+}
+
+model Minuta {
+  id            Int          @id @default(autoincrement())
+  titulo        String
+  tema          String
+  fecha         DateTime     @db.Date
+  horaInicio    String?
+  horaFin       String?
+  ubicacion     String?
+
+  participantes Json
+  ausentes      Json?
+
+  objetivo  String  @db.Text
+  temas     Json
+  decisiones Json?
+  notas     String? @db.Text
+
+  tareas TareaMinuta[]
+
+  estado        EstadoMinuta @default(BORRADOR)
+  creadaPor     String
+  creadorNombre String
+  archivada     Boolean  @default(false)
+  adjuntos      Json?
+
+  fechaCreacion  DateTime @default(now())
+  ultimaEdicion  DateTime @updatedAt
+
+  @@index([tema, fecha])
+  @@index([creadaPor])
+  @@index([estado])
+}
+
+model TareaMinuta {
+  id               Int            @id @default(autoincrement())
+  minutaId         Int
+  minuta           Minuta         @relation(fields: [minutaId], references: [id], onDelete: Cascade)
+
+  descripcion      String         @db.Text
+  responsable      String
+  responsableEmail String?
+  plazo            DateTime?      @db.Date
+  prioridad        PrioridadTarea @default(MEDIA)
+  estado           EstadoTarea    @default(PENDIENTE)
+
+  comentarios     String?  @db.Text
+  fechaCompletada DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([minutaId])
+  @@index([responsable, estado])
+  @@index([plazo])
+}
