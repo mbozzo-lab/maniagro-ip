@@ -126,6 +126,7 @@ model Solicitud {
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
   actividades    Actividad[]
+  obrasPE        ObraPE[]
 }
 
 model CriterioClasificacion {
@@ -292,4 +293,37 @@ model TareaMinuta {
   @@index([minutaId])
   @@index([responsable, estado])
   @@index([plazo])
+}
+
+// ─── Obras PE ─────────────────────────────────────────────────────────────────
+
+enum EstadoObraPE {
+  PENDIENTE
+  EN_PROCESO
+  COMPLETADA
+  CANCELADA
+  EN_ESPERA
+}
+
+model ObraPE {
+  id                  Int          @id @default(autoincrement())
+  responsable         String
+  solicitudId         Int?
+  solicitud           Solicitud?   @relation(fields: [solicitudId], references: [id])
+  numeroSolicitud     String?
+  detalle             String       @db.Text
+  definicionesTomadas String?      @db.Text
+  estado              EstadoObraPE @default(PENDIENTE)
+  prioridad           String?
+  planta              String?
+  observaciones       String?      @db.Text
+  creadoPor           String
+  creadorNombre       String
+  fechaAlta           DateTime     @default(now())
+  ultimaActualizacion DateTime     @updatedAt
+
+  @@index([responsable])
+  @@index([estado])
+  @@index([solicitudId])
+  @@index([fechaAlta])
 }
