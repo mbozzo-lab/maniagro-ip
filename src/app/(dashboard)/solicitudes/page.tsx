@@ -7,7 +7,8 @@ import FiltrosSolicitudes from "@/components/FiltrosSolicitudes";
 import ExportButton from "@/components/ExportButton";
 import type { Tipo, Prioridad, Clasificacion, Estado } from "@/generated/prisma/client";
 import { syncSolicitudToSheet } from "@/lib/sheets";
-import { sendAssignmentEmail } from "@/lib/email";
+import { sendNotification } from "@/lib/notify";
+import { auth } from "@/lib/auth";
 
 type Filters = {
   keyword?:     string;
@@ -92,6 +93,7 @@ async function getUsuarios() {
 
 async function crearSolicitud(data: FormData) {
   "use server";
+  const session = await auth();
   const tipoRaw = data.get("tipo") as string;
   const responsableId = data.get("responsableId") as string | null;
   const created = await prisma.solicitud.create({
@@ -116,11 +118,14 @@ async function crearSolicitud(data: FormData) {
       select: { email: true, name: true },
     });
     if (user?.email) {
-      await sendAssignmentEmail({
-        toEmail:     user.email,
+      sendNotification({
+        tipo:        "nueva_solicitud",
+        to:          user.email,
         toName:      user.name ?? user.email,
         projectName: created.proyecto,
         projectId:   created.id,
+        senderEmail: session?.user?.email ?? "",
+        appUrl:      (process.env.AUTH_URL ?? "").replace(/\/$/, ""),
       }).catch(console.error);
     }
   }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { sendNotification } from "@/lib/notify";
 
 export async function GET() {
   const session = await auth();
@@ -36,6 +37,18 @@ export async function POST(request: Request) {
       owner:          body.owner          || null,
     },
   });
+
+  // Fire-and-forget: notify owner if someone else created this activity
+  if (actividad.owner) {
+    sendNotification({
+      tipo:         "nueva_actividad",
+      detalle:      actividad.detalle,
+      proyecto:     actividad.proyectoNombre ?? null,
+      owner:        actividad.owner,
+      senderEmail:  session.user.email ?? "",
+      senderName:   session.user.name  ?? session.user.email ?? "Un usuario",
+    }).catch(console.error);
+  }
 
   return NextResponse.json(actividad, { status: 201 });
 }
