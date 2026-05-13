@@ -8,6 +8,7 @@ import Badge from "@/shared/ui/components/Badge";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import ExportToDriveButton from "@/features/minutas/ui/ExportToDriveButton";
 
 interface TareaMinuta {
   id: number;
@@ -59,7 +60,13 @@ const ESTADO_TAREA_BADGE: Record<string, "default" | "success" | "warning" | "da
   CANCELADA:   "default",
 };
 
-export default function MinutaDetailClient({ minuta: initial }: { minuta: Minuta }) {
+export default function MinutaDetailClient({
+  minuta: initial,
+  driveFolderId = null,
+}: {
+  minuta: Minuta;
+  driveFolderId?: string | null;
+}) {
   const router = useRouter();
   const [minuta, setMinuta]    = useState(initial);
   const [tareas, setTareas]    = useState<TareaMinuta[]>(initial.tareas);
@@ -192,6 +199,7 @@ export default function MinutaDetailClient({ minuta: initial }: { minuta: Minuta
           {minuta.estado === "BORRADOR" && (
             <Button variant="primary" size="sm" onClick={handlePublicar}>Publicar</Button>
           )}
+          <ExportToDriveButton minutaId={minuta.id} folderId={driveFolderId} />
           <Button variant="outline" size="sm" onClick={() => router.push(`/minutas/${minuta.id}/editar`)}>
             Editar
           </Button>

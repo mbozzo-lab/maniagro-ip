@@ -19,5 +19,10 @@ export default async function MinutaDetailPage({
 
   if (!minuta) notFound();
 
-  return <MinutaDetailClient minuta={JSON.parse(JSON.stringify(minuta))} />;
+  return (
+    <MinutaDetailClient
+      minuta={JSON.parse(JSON.stringify(minuta))}
+      driveFolderId={process.env.MINUTAS_DRIVE_FOLDER_ID ?? null}
+    />
+  );
 }
