@@ -199,13 +199,18 @@ export default function AnotadorClient() {
             onChange={(e) => setNewHora(e.target.value)}
             className="sm:col-span-2 px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm text-slate-900"
           />
-          <input
-            type="text"
+          <textarea
             value={newNote}
             onChange={(e) => setNewNote(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleAddNote()}
-            className="sm:col-span-7 px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm text-slate-900"
-            placeholder="Escribe tu nota o tarea..."
+            onKeyDown={(e) => {
+              if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+                e.preventDefault();
+                handleAddNote();
+              }
+            }}
+            className="sm:col-span-7 px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm text-slate-900 resize-y min-h-[42px] max-h-[200px]"
+            placeholder="Escribe tu nota o tarea... (Ctrl+Enter para agregar)"
+            rows={2}
           />
           <select
             value={newPrioridad}
@@ -270,22 +275,25 @@ export default function AnotadorClient() {
 
                   {editingId === note.id ? (
                     <div className="flex gap-2 mt-1">
-                      <input
-                        type="text"
+                      <textarea
                         value={editingContent}
                         onChange={(e) => setEditingContent(e.target.value)}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter")  handleSaveEdit(note.id);
+                          if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+                            e.preventDefault();
+                            handleSaveEdit(note.id);
+                          }
                           if (e.key === "Escape") setEditingId(null);
                         }}
-                        className="flex-1 px-3 py-1.5 border border-primary-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm"
+                        className="flex-1 px-3 py-1.5 border border-primary-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm resize-y min-h-[60px]"
                         autoFocus
+                        rows={3}
                       />
                       <Button size="sm" onClick={() => handleSaveEdit(note.id)}>Guardar</Button>
                       <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>Cancelar</Button>
                     </div>
                   ) : (
-                    <p className={`text-sm ${note.completada ? "line-through text-slate-400" : "text-slate-900"}`}>
+                    <p className={`text-sm whitespace-pre-wrap ${note.completada ? "line-through text-slate-400" : "text-slate-900"}`}>
                       {note.contenido}
                     </p>
                   )}
