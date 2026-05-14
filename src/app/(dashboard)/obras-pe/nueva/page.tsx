@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Card from "@/shared/ui/components/Card";
 import Button from "@/shared/ui/components/Button";
-import Input from "@/shared/ui/components/Input";
 import { toast } from "sonner";
 
 export default function NuevaObraPEPage() {
@@ -53,11 +52,14 @@ export default function NuevaObraPEPage() {
           creadorNombre:   session?.user?.name,
         }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        throw new Error((error as { error?: string }).error ?? "Error al crear obra");
+      }
       toast.success("Obra PE creada");
       router.push("/obras-pe");
-    } catch {
-      toast.error("Error al crear obra");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al crear obra");
     } finally {
       setLoading(false);
     }
@@ -72,12 +74,15 @@ export default function NuevaObraPEPage() {
 
       <Card title="Información de la Obra">
         <div className="space-y-4">
-          <Input
-            label="Responsable *"
-            placeholder="Nombre del responsable"
-            value={form.responsable}
-            onChange={(e) => set("responsable", e.target.value)}
-          />
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Responsable *</label>
+            <input
+              placeholder="Nombre del responsable"
+              value={form.responsable}
+              onChange={(e) => set("responsable", e.target.value)}
+              className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm text-slate-900"
+            />
+          </div>
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
@@ -96,12 +101,15 @@ export default function NuevaObraPEPage() {
           </div>
 
           {!form.solicitudId && (
-            <Input
-              label="O N° Solicitud (texto libre)"
-              placeholder="Ej: SOL-2026-123"
-              value={form.numeroSolicitud}
-              onChange={(e) => set("numeroSolicitud", e.target.value)}
-            />
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">O N° Solicitud (texto libre)</label>
+              <input
+                placeholder="Ej: SOL-2026-123"
+                value={form.numeroSolicitud}
+                onChange={(e) => set("numeroSolicitud", e.target.value)}
+                className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm text-slate-900"
+              />
+            </div>
           )}
 
           <div>
@@ -141,8 +149,24 @@ export default function NuevaObraPEPage() {
                 <option value="CANCELADA">Cancelada</option>
               </select>
             </div>
-            <Input label="Prioridad" placeholder="Alta, Media, Baja..." value={form.prioridad} onChange={(e) => set("prioridad", e.target.value)} />
-            <Input label="Planta"    placeholder="Ubicación..."          value={form.planta}     onChange={(e) => set("planta", e.target.value)} />
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Prioridad</label>
+              <input
+                placeholder="Alta, Media, Baja..."
+                value={form.prioridad}
+                onChange={(e) => set("prioridad", e.target.value)}
+                className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm text-slate-900"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Planta</label>
+              <input
+                placeholder="Ubicación..."
+                value={form.planta}
+                onChange={(e) => set("planta", e.target.value)}
+                className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm text-slate-900"
+              />
+            </div>
           </div>
 
           <div>
