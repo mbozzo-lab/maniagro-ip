@@ -1,204 +1,258 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
-import Button from "@/shared/ui/components/Button";
 import Card from "@/shared/ui/components/Card";
+import Button from "@/shared/ui/components/Button";
 import { toast } from "sonner";
 
-interface ObraRow {
+interface ObraExcel {
   responsable:         string;
-  numeroSolicitud:     string;
+  numeroSolicitud?:    string;
   detalle:             string;
-  definicionesTomadas: string;
-  estado:              string;
-  prioridad:           string;
-  planta:              string;
-  observaciones:       string;
+  definicionesTomadas?: string;
+  estado?:             string;
+  prioridad?:          string;
+  planta?:             string;
+  observaciones?:      string;
 }
 
-const TEMPLATE_HEADERS = [
-  "responsable",
-  "numeroSolicitud",
-  "detalle",
-  "definicionesTomadas",
-  "estado",
-  "prioridad",
-  "planta",
-  "observaciones",
-];
+const ESTADOS_VALIDOS = new Set(["PENDIENTE", "EN_PROCESO", "COMPLETADA", "CANCELADA", "EN_ESPERA"]);
 
-const ESTADO_VALID = new Set(["PENDIENTE", "EN_PROCESO", "COMPLETADA", "EN_ESPERA", "CANCELADA"]);
-
-function normalizeEstado(raw: string): string {
-  const map: Record<string, string> = {
-    pendiente:   "PENDIENTE",
-    "en proceso": "EN_PROCESO",
-    "en_proceso": "EN_PROCESO",
-    completada:  "COMPLETADA",
-    "en espera": "EN_ESPERA",
-    "en_espera": "EN_ESPERA",
-    cancelada:   "CANCELADA",
-  };
-  const normalized = map[raw.toLowerCase().trim()];
-  if (normalized) return normalized;
-  const upper = raw.toUpperCase().trim();
-  return ESTADO_VALID.has(upper) ? upper : "PENDIENTE";
-}
-
-export default function ImportarObrasPEPage() {
-  const router  = useRouter();
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [rows, setRows]       = useState<ObraRow[]>([]);
+export default function ImportarObrasPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [file, setFile]       = useState<File | null>(null);
+  const [preview, setPreview] = useState<ObraExcel[]>([]);
+  const [parseError, setParseError] = useState("");
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = e.target.files?.[0];
+    if (!selected) return;
+    setFile(selected);
+    setParseError("");
+    parseExcel(selected);
+  };
 
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const data    = ev.target?.result;
-      const wb      = XLSX.read(data, { type: "binary" });
-      const ws      = wb.Sheets[wb.SheetNames[0]];
-      const json    = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { defval: "" });
+  const parseExcel = async (f: File) => {
+    try {
+      const data      = await f.arrayBuffer();
+      const workbook  = XLSX.read(data);
+      const ws        = workbook.Sheets[workbook.SheetNames[0]];
+      const json      = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "" });
 
-      const parsed: ObraRow[] = json.map((row) => ({
-        responsable:         String(row["responsable"]         ?? row["Responsable"]         ?? "").trim(),
-        numeroSolicitud:     String(row["numeroSolicitud"]     ?? row["N° Solicitud"]        ?? row["NumeroSolicitud"] ?? "").trim(),
-        detalle:             String(row["detalle"]             ?? row["Detalle"]             ?? "").trim(),
-        definicionesTomadas: String(row["definicionesTomadas"] ?? row["Definiciones Tomadas"] ?? row["DefinicionesTomadas"] ?? "").trim(),
-        estado:              normalizeEstado(String(row["estado"] ?? row["Estado"] ?? "PENDIENTE")),
-        prioridad:           String(row["prioridad"]           ?? row["Prioridad"]           ?? "").trim(),
-        planta:              String(row["planta"]              ?? row["Planta"]              ?? "").trim(),
-        observaciones:       String(row["observaciones"]       ?? row["Observaciones"]       ?? "").trim(),
+      if (json.length === 0) { setParseError("El archivo Excel está vacío"); setPreview([]); return; }
+
+      const str = (row: Record<string, unknown>, ...keys: string[]) => {
+        for (const k of keys) if (row[k]) return String(row[k]).trim();
+        return "";
+      };
+
+      const obras: ObraExcel[] = json.map((row) => ({
+        responsable:         str(row, "Responsable", "responsable"),
+        numeroSolicitud:     str(row, "N° Solicitud", "Numero Solicitud", "numeroSolicitud"),
+        detalle:             str(row, "Detalle", "detalle"),
+        definicionesTomadas: str(row, "Definiciones", "Definiciones Tomadas", "definicionesTomadas"),
+        estado:              str(row, "Estado", "estado") || "PENDIENTE",
+        prioridad:           str(row, "Prioridad", "prioridad"),
+        planta:              str(row, "Planta", "planta"),
+        observaciones:       str(row, "Observaciones", "observaciones"),
       }));
 
-      setRows(parsed.filter((r) => r.responsable || r.detalle));
-    };
-    reader.readAsBinaryString(file);
+      const validas  = obras.filter((o) => o.responsable && o.detalle);
+      const omitidas = obras.length - validas.length;
+
+      if (validas.length === 0) {
+        setParseError("No se encontraron obras válidas. Las columnas 'Responsable' y 'Detalle' deben tener valores.");
+        setPreview([]);
+        return;
+      }
+
+      setPreview(validas);
+      toast.success(`${validas.length} obra(s) detectada(s)`);
+      if (omitidas > 0) toast.warning(`${omitidas} fila(s) ignoradas por falta de datos obligatorios`);
+    } catch {
+      setParseError("Error al leer el archivo. Verificá que sea un Excel (.xlsx / .xls) válido.");
+      setPreview([]);
+    }
   };
 
   const handleImport = async () => {
-    if (rows.length === 0) { toast.error("No hay filas para importar"); return; }
+    if (preview.length === 0) { toast.error("No hay obras para importar"); return; }
     setLoading(true);
     try {
       const res = await fetch("/api/obras-pe/import", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ obras: rows }),
+        body:    JSON.stringify({ obras: preview }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error((err as { error?: string }).error ?? "Error al importar");
       }
       const { count } = await res.json() as { count: number };
-      toast.success(`${count} obras importadas correctamente`);
+      toast.success(`${count} obra(s) importada(s) exitosamente`);
       router.push("/obras-pe");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error al importar");
+      toast.error(err instanceof Error ? err.message : "Error al importar obras");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDownloadTemplate = () => {
-    const ws = XLSX.utils.aoa_to_sheet([
-      TEMPLATE_HEADERS,
-      ["Juan Pérez", "SOL-2026-001", "Instalación de válvula", "Se decidió usar válvula tipo A", "PENDIENTE", "Alta", "Planta 1", ""],
-    ]);
+  const downloadTemplate = () => {
+    const template = [
+      { Responsable: "Francisco Reynoso", "N° Solicitud": "SOL-2026-001", Detalle: "Reparación de horno E5 - Reemplazo de resistencias", Definiciones: "Reemplazar todas las resistencias y verificar tablero eléctrico", Estado: "PENDIENTE", Prioridad: "Alta", Planta: "Empaque 5", Observaciones: "Coordinar con mantenimiento para parada programada" },
+      { Responsable: "Javier Martinez",   "N° Solicitud": "SOL-2026-002", Detalle: "Instalación de sensor de temperatura en línea 3", Definiciones: "Sensor modelo XYZ-123, instalación en punto crítico", Estado: "EN_PROCESO", Prioridad: "Media", Planta: "Producción 3", Observaciones: "Material disponible en almacén" },
+      { Responsable: "Maria Belen Bozzo", "N° Solicitud": "",              Detalle: "Mejora de iluminación en sector de envasado", Definiciones: "Reemplazo de 15 luminarias LED de 60W", Estado: "PENDIENTE", Prioridad: "Baja", Planta: "Envasado", Observaciones: "" },
+    ];
+    const ws = XLSX.utils.json_to_sheet(template);
+    ws["!cols"] = [{ wch: 22 }, { wch: 16 }, { wch: 52 }, { wch: 52 }, { wch: 13 }, { wch: 12 }, { wch: 15 }, { wch: 40 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Obras PE");
-    XLSX.writeFile(wb, "template_obras_pe.xlsx");
+    XLSX.writeFile(wb, "Plantilla_Obras_PE.xlsx");
+    toast.success("Plantilla descargada");
   };
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between">
+    <div className="p-4 sm:p-6 space-y-6 max-w-6xl mx-auto">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Importar Obras PE</h1>
-          <p className="text-sm text-slate-500 mt-1">Cargá un archivo Excel (.xlsx) con las obras a importar</p>
+          <h1 className="text-2xl font-bold text-slate-900">Importar Obras desde Excel</h1>
+          <p className="text-sm text-slate-500 mt-1">Cargá múltiples obras de una sola vez desde un archivo Excel</p>
         </div>
-        <Button variant="ghost" onClick={() => router.back()}>← Volver</Button>
+        <Button variant="ghost" onClick={() => router.push("/obras-pe")}>← Volver</Button>
       </div>
 
-      <Card title="Archivo Excel">
+      {/* Instrucciones */}
+      <Card title="Instrucciones">
         <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".xlsx,.xls,.csv"
-              onChange={handleFile}
-              className="block text-sm text-slate-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 cursor-pointer"
-            />
-            <Button variant="outline" size="sm" onClick={handleDownloadTemplate}>
-              Descargar plantilla
-            </Button>
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+            <p className="text-sm font-semibold text-slate-700 mb-2">Formato del Excel — columnas reconocidas:</p>
+            <ul className="text-sm text-slate-600 space-y-1 list-disc list-inside">
+              <li><strong>Responsable</strong> (obligatorio)</li>
+              <li><strong>N° Solicitud</strong> (opcional)</li>
+              <li><strong>Detalle</strong> (obligatorio)</li>
+              <li><strong>Definiciones</strong> o <strong>Definiciones Tomadas</strong> (opcional)</li>
+              <li><strong>Estado</strong> (opcional) — PENDIENTE, EN_PROCESO, COMPLETADA, CANCELADA, EN_ESPERA</li>
+              <li><strong>Prioridad</strong> (opcional)</li>
+              <li><strong>Planta</strong> (opcional)</li>
+              <li><strong>Observaciones</strong> (opcional)</li>
+            </ul>
           </div>
-
-          <div className="bg-slate-50 rounded-lg px-4 py-3 text-xs text-slate-600 space-y-1">
-            <p className="font-medium text-slate-700">Columnas esperadas:</p>
-            <p>
-              <span className="font-mono bg-white border border-slate-200 rounded px-1">responsable</span>{" "}
-              <span className="font-mono bg-white border border-slate-200 rounded px-1">numeroSolicitud</span>{" "}
-              <span className="font-mono bg-white border border-slate-200 rounded px-1">detalle</span>{" "}
-              <span className="font-mono bg-white border border-slate-200 rounded px-1">definicionesTomadas</span>{" "}
-              <span className="font-mono bg-white border border-slate-200 rounded px-1">estado</span>{" "}
-              <span className="font-mono bg-white border border-slate-200 rounded px-1">prioridad</span>{" "}
-              <span className="font-mono bg-white border border-slate-200 rounded px-1">planta</span>{" "}
-              <span className="font-mono bg-white border border-slate-200 rounded px-1">observaciones</span>
-            </p>
-            <p>El campo <strong>estado</strong> acepta: PENDIENTE, EN_PROCESO, COMPLETADA, EN_ESPERA, CANCELADA (por defecto: PENDIENTE)</p>
-          </div>
+          <Button variant="outline" onClick={downloadTemplate}>
+            Descargar plantilla de ejemplo
+          </Button>
         </div>
       </Card>
 
-      {rows.length > 0 && (
-        <Card title={`Vista previa — ${rows.length} filas`}>
+      {/* Upload */}
+      <Card title="1. Seleccionar archivo Excel">
+        <div className="space-y-4">
+          <label
+            htmlFor="file-upload"
+            className="block border-2 border-dashed border-slate-300 rounded-lg p-8 text-center hover:border-primary-400 transition-colors cursor-pointer"
+          >
+            <input
+              id="file-upload"
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+            <div className="mx-auto mb-3 w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center">
+              <svg className="w-7 h-7 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+            </div>
+            <p className="text-sm font-medium text-slate-700">Click para seleccionar archivo Excel</p>
+            <p className="text-xs text-slate-400 mt-1">Formatos: .xlsx, .xls</p>
+          </label>
+
+          {file && !parseError && (
+            <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <svg className="w-5 h-5 text-green-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <p className="text-sm font-medium text-green-900">{file.name}</p>
+                <p className="text-xs text-green-700">{(file.size / 1024).toFixed(1)} KB</p>
+              </div>
+            </div>
+          )}
+
+          {parseError && (
+            <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <svg className="w-5 h-5 text-red-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-sm text-red-700">{parseError}</p>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* Preview */}
+      {preview.length > 0 && (
+        <Card title={`2. Vista previa — ${preview.length} obra${preview.length !== 1 ? "s" : ""} detectadas`}>
           <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left">
+            <table className="w-full text-sm border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50">
-                  <th className="px-3 py-2 font-medium text-slate-600">#</th>
-                  <th className="px-3 py-2 font-medium text-slate-600">Responsable</th>
-                  <th className="px-3 py-2 font-medium text-slate-600">N° Solicitud</th>
-                  <th className="px-3 py-2 font-medium text-slate-600">Detalle</th>
-                  <th className="px-3 py-2 font-medium text-slate-600">Estado</th>
-                  <th className="px-3 py-2 font-medium text-slate-600">Prioridad</th>
-                  <th className="px-3 py-2 font-medium text-slate-600">Planta</th>
+                  {["#", "Responsable", "N° Sol.", "Detalle", "Estado", "Prioridad", "Planta"].map((h) => (
+                    <th key={h} className="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">{h}</th>
+                  ))}
                 </tr>
               </thead>
-              <tbody>
-                {rows.map((row, i) => (
-                  <tr key={i} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="px-3 py-2 text-slate-400">{i + 1}</td>
-                    <td className="px-3 py-2 text-slate-900 font-medium">{row.responsable || <span className="text-danger-500">—</span>}</td>
-                    <td className="px-3 py-2 text-slate-600">{row.numeroSolicitud || "—"}</td>
-                    <td className="px-3 py-2 text-slate-700 max-w-[200px] truncate">{row.detalle || <span className="text-danger-500">—</span>}</td>
+              <tbody className="divide-y divide-slate-100">
+                {preview.slice(0, 10).map((obra, i) => (
+                  <tr key={i} className="hover:bg-slate-50">
+                    <td className="px-3 py-2 text-slate-400 text-xs font-mono">{i + 1}</td>
+                    <td className="px-3 py-2 font-medium text-slate-900">{obra.responsable}</td>
+                    <td className="px-3 py-2 text-slate-500">{obra.numeroSolicitud || "—"}</td>
+                    <td className="px-3 py-2 text-slate-700 max-w-xs truncate" title={obra.detalle}>{obra.detalle}</td>
                     <td className="px-3 py-2">
-                      <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">{row.estado}</span>
+                      <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
+                        obra.estado === "COMPLETADA" ? "bg-green-100 text-green-700" :
+                        obra.estado === "EN_PROCESO" ? "bg-blue-100 text-blue-700"  :
+                        obra.estado === "CANCELADA"  ? "bg-slate-100 text-slate-600":
+                        "bg-yellow-100 text-yellow-700"
+                      }`}>
+                        {ESTADOS_VALIDOS.has(obra.estado ?? "") ? obra.estado : "PENDIENTE"}
+                      </span>
                     </td>
-                    <td className="px-3 py-2 text-slate-600">{row.prioridad || "—"}</td>
-                    <td className="px-3 py-2 text-slate-600">{row.planta || "—"}</td>
+                    <td className="px-3 py-2 text-slate-500">{obra.prioridad || "—"}</td>
+                    <td className="px-3 py-2 text-slate-500">{obra.planta || "—"}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          {preview.length > 10 && (
+            <p className="text-xs text-slate-400 text-center mt-3 bg-slate-50 py-2 rounded">
+              Mostrando las primeras 10. Se importarán las {preview.length} obras.
+            </p>
+          )}
         </Card>
       )}
 
-      {rows.length > 0 && (
-        <div className="flex gap-3 justify-end pb-6">
-          <Button variant="ghost" onClick={() => { setRows([]); if (fileRef.current) fileRef.current.value = ""; }}>
-            Limpiar
-          </Button>
-          <Button variant="primary" onClick={handleImport} loading={loading}>
-            Importar {rows.length} obras
-          </Button>
-        </div>
+      {/* Acción */}
+      {preview.length > 0 && (
+        <Card>
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div>
+              <p className="font-semibold text-slate-900">¿Importar {preview.length} obra{preview.length !== 1 ? "s" : ""}?</p>
+              <p className="text-sm text-slate-500 mt-0.5">Las obras se agregarán a la lista existente</p>
+            </div>
+            <div className="flex gap-3">
+              <Button variant="ghost" onClick={() => router.push("/obras-pe")} disabled={loading}>Cancelar</Button>
+              <Button variant="primary" onClick={handleImport} loading={loading}>
+                Importar {preview.length} obra{preview.length !== 1 ? "s" : ""}
+              </Button>
+            </div>
+          </div>
+        </Card>
       )}
     </div>
   );
