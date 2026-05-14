@@ -10,7 +10,17 @@ export async function PATCH(
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const body = await request.json();
+  const body = await request.json() as Record<string, unknown>;
+
+  if ("plazo" in body) {
+    const raw = body.plazo;
+    if (!raw || raw === "") {
+      body.plazo = null;
+    } else {
+      const d = new Date(raw as string);
+      body.plazo = isNaN(d.getTime()) ? null : d;
+    }
+  }
 
   const obra = await prisma.obraPE.update({
     where: { id: Number(id) },

@@ -10,6 +10,7 @@ interface ObraInput {
   definicionesTomadas?: string;
   estado?:             string;
   prioridad?:          string;
+  plazo?:              string;
   planta?:             string;
   observaciones?:      string;
 }
@@ -34,8 +35,9 @@ export async function POST(request: Request) {
       numeroSolicitud:     o.numeroSolicitud?.trim()     || null,
       definicionesTomadas: o.definicionesTomadas?.trim() || null,
       estado:              (VALID_ESTADO.has(o.estado ?? "") ? o.estado : "PENDIENTE") as EstadoObraPE,
-      prioridad:           o.prioridad?.trim()           || null,
-      planta:              o.planta?.trim()              || null,
+      prioridad:           o.prioridad?.trim() || null,
+      plazo:               (() => { if (!o.plazo?.trim()) return null; const d = new Date(o.plazo); return isNaN(d.getTime()) ? null : d; })(),
+      planta:              o.planta?.trim()    || null,
       observaciones:       o.observaciones?.trim()       || null,
       creadoPor:           session.user!.email ?? "",
       creadorNombre:       session.user!.name  ?? "",

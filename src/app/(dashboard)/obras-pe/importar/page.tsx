@@ -14,6 +14,7 @@ interface ObraExcel {
   definicionesTomadas?: string;
   estado?:             string;
   prioridad?:          string;
+  plazo?:              string;
   planta?:             string;
   observaciones?:      string;
 }
@@ -56,6 +57,7 @@ export default function ImportarObrasPage() {
         definicionesTomadas: str(row, "Definiciones", "Definiciones Tomadas", "definicionesTomadas"),
         estado:              str(row, "Estado", "estado") || "PENDIENTE",
         prioridad:           str(row, "Prioridad", "prioridad"),
+        plazo:               str(row, "Plazo", "plazo"),
         planta:              str(row, "Planta", "planta"),
         observaciones:       str(row, "Observaciones", "observaciones"),
       }));
@@ -103,12 +105,12 @@ export default function ImportarObrasPage() {
 
   const downloadTemplate = () => {
     const template = [
-      { Responsable: "Francisco Reynoso", "N° Solicitud": "SOL-2026-001", Detalle: "Reparación de horno E5 - Reemplazo de resistencias", Definiciones: "Reemplazar todas las resistencias y verificar tablero eléctrico", Estado: "PENDIENTE", Prioridad: "Alta", Planta: "Empaque 5", Observaciones: "Coordinar con mantenimiento para parada programada" },
-      { Responsable: "Javier Martinez",   "N° Solicitud": "SOL-2026-002", Detalle: "Instalación de sensor de temperatura en línea 3", Definiciones: "Sensor modelo XYZ-123, instalación en punto crítico", Estado: "EN_PROCESO", Prioridad: "Media", Planta: "Producción 3", Observaciones: "Material disponible en almacén" },
-      { Responsable: "Maria Belen Bozzo", "N° Solicitud": "",              Detalle: "Mejora de iluminación en sector de envasado", Definiciones: "Reemplazo de 15 luminarias LED de 60W", Estado: "PENDIENTE", Prioridad: "Baja", Planta: "Envasado", Observaciones: "" },
+      { Responsable: "Francisco Reynoso", "N° Solicitud": "SOL-2026-001", Detalle: "Reparación de horno E5 - Reemplazo de resistencias", Definiciones: "Reemplazar todas las resistencias y verificar tablero eléctrico", Estado: "PENDIENTE", Prioridad: "Alta", Plazo: "2026-06-30", Planta: "Empaque 5", Observaciones: "Coordinar con mantenimiento para parada programada" },
+      { Responsable: "Javier Martinez",   "N° Solicitud": "SOL-2026-002", Detalle: "Instalación de sensor de temperatura en línea 3", Definiciones: "Sensor modelo XYZ-123, instalación en punto crítico", Estado: "EN_PROCESO", Prioridad: "Media", Plazo: "2026-05-25", Planta: "Producción 3", Observaciones: "Material disponible en almacén" },
+      { Responsable: "Maria Belen Bozzo", "N° Solicitud": "",              Detalle: "Mejora de iluminación en sector de envasado", Definiciones: "Reemplazo de 15 luminarias LED de 60W", Estado: "PENDIENTE", Prioridad: "Baja", Plazo: "2026-07-15", Planta: "Envasado", Observaciones: "" },
     ];
     const ws = XLSX.utils.json_to_sheet(template);
-    ws["!cols"] = [{ wch: 22 }, { wch: 16 }, { wch: 52 }, { wch: 52 }, { wch: 13 }, { wch: 12 }, { wch: 15 }, { wch: 40 }];
+    ws["!cols"] = [{ wch: 22 }, { wch: 16 }, { wch: 52 }, { wch: 52 }, { wch: 13 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 40 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Obras PE");
     XLSX.writeFile(wb, "Plantilla_Obras_PE.xlsx");
@@ -137,6 +139,7 @@ export default function ImportarObrasPage() {
               <li><strong>Definiciones</strong> o <strong>Definiciones Tomadas</strong> (opcional)</li>
               <li><strong>Estado</strong> (opcional) — PENDIENTE, EN_PROCESO, COMPLETADA, CANCELADA, EN_ESPERA</li>
               <li><strong>Prioridad</strong> (opcional)</li>
+              <li><strong>Plazo</strong> (opcional) — Fecha límite en formato AAAA-MM-DD (Ej: 2026-06-30)</li>
               <li><strong>Planta</strong> (opcional)</li>
               <li><strong>Observaciones</strong> (opcional)</li>
             </ul>
@@ -200,7 +203,7 @@ export default function ImportarObrasPage() {
             <table className="w-full text-sm border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50">
-                  {["#", "Responsable", "N° Sol.", "Detalle", "Estado", "Prioridad", "Planta"].map((h) => (
+                  {["#", "Responsable", "N° Sol.", "Detalle", "Estado", "Prioridad", "Plazo", "Planta"].map((h) => (
                     <th key={h} className="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">{h}</th>
                   ))}
                 </tr>
@@ -223,6 +226,11 @@ export default function ImportarObrasPage() {
                       </span>
                     </td>
                     <td className="px-3 py-2 text-slate-500">{obra.prioridad || "—"}</td>
+                    <td className="px-3 py-2 text-slate-500">
+                      {obra.plazo
+                        ? (() => { const d = new Date(obra.plazo); return isNaN(d.getTime()) ? obra.plazo : d.toLocaleDateString("es-AR"); })()
+                        : "—"}
+                    </td>
                     <td className="px-3 py-2 text-slate-500">{obra.planta || "—"}</td>
                   </tr>
                 ))}

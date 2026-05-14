@@ -20,6 +20,8 @@ export async function POST(request: Request) {
 
   const body = await request.json();
 
+  const plazoDate = body.plazo ? (() => { const d = new Date(body.plazo); return isNaN(d.getTime()) ? null : d; })() : null;
+
   const obra = await prisma.obraPE.create({
     data: {
       responsable:         body.responsable,
@@ -29,6 +31,7 @@ export async function POST(request: Request) {
       definicionesTomadas: body.definicionesTomadas || null,
       estado:              body.estado ?? "PENDIENTE",
       prioridad:           body.prioridad    || null,
+      plazo:               plazoDate,
       planta:              body.planta       || null,
       observaciones:       body.observaciones || null,
       creadoPor:           session.user.email!,

@@ -26,6 +26,7 @@ export default function NuevaObraPEPage() {
     definicionesTomadas: "",
     estado:              "PENDIENTE",
     prioridad:           "",
+    plazo:               "",
     planta:              "",
     observaciones:       "",
   });
@@ -48,6 +49,7 @@ export default function NuevaObraPEPage() {
           definicionesTomadas: formData.definicionesTomadas || null,
           estado:              formData.estado,
           prioridad:           formData.prioridad || null,
+          plazo:               formData.plazo ? new Date(formData.plazo).toISOString() : null,
           planta:              formData.planta || null,
           observaciones:       formData.observaciones || null,
         }),
@@ -140,7 +142,7 @@ export default function NuevaObraPEPage() {
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">Estado</label>
               <select
@@ -163,6 +165,15 @@ export default function NuevaObraPEPage() {
                 value={formData.prioridad}
                 onChange={(e) => setFormData({ ...formData, prioridad: e.target.value })}
                 className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm text-slate-900"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Plazo</label>
+              <input
+                type="date"
+                value={formData.plazo}
+                onChange={(e) => setFormData({ ...formData, plazo: e.target.value })}
+                className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm"
               />
             </div>
             <div>

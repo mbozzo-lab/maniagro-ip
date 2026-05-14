@@ -22,6 +22,7 @@ interface ObraPE {
   ultimaActualizacion: string;
   estado:              string;
   prioridad:           string | null;
+  plazo:               string | null;
   planta:              string | null;
 }
 
@@ -307,6 +308,7 @@ export default function ObrasPEClient({
               <Th field="fechaAlta"           label="Fecha Alta"     className="w-24" />
               <Th field="ultimaActualizacion" label="Última Act."    className="w-24" />
               <Th field="estado"              label="Estado"         className="w-28" />
+              <Th field="plazo"               label="Plazo"          className="w-24" />
               <th className="px-3 py-3 text-center text-xs font-semibold text-slate-600 uppercase w-16">
                 Acc.
               </th>
@@ -356,6 +358,14 @@ function ObraRow({
   const [nroSolicitud,  setNroSolicitud]  = useState(obra.numeroSolicitud ?? "");
   const [detalle,       setDetalle]       = useState(obra.detalle);
   const [definiciones,  setDefiniciones]  = useState(obra.definicionesTomadas ?? "");
+  const [plazo,         setPlazo]         = useState(
+    obra.plazo ? new Date(obra.plazo).toISOString().split("T")[0] : ""
+  );
+
+  const hoy    = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  const plazoDate   = plazo ? new Date(plazo + "T00:00:00") : null;
+  const plazoVencido = plazoDate && plazoDate < hoy && obra.estado !== "COMPLETADA";
 
   const cellInput = "w-full px-2 py-1 text-sm border border-transparent rounded hover:border-slate-200 focus:border-primary-400 focus:ring-1 focus:ring-primary-400 focus:outline-none bg-transparent focus:bg-white transition-colors";
   const cellTextarea = "w-full px-2 py-1 text-sm border border-transparent rounded hover:border-slate-200 focus:border-primary-400 focus:ring-1 focus:ring-primary-400 focus:outline-none bg-transparent focus:bg-white transition-colors resize-y min-h-[40px]";
@@ -445,6 +455,20 @@ function ObraRow({
         <Badge variant={ESTADO_BADGE[obra.estado] ?? "default"} size="sm" className="mt-1">
           {ESTADO_LABEL[obra.estado]}
         </Badge>
+      </td>
+
+      {/* Plazo */}
+      <td className="px-2 py-2 whitespace-nowrap">
+        <input
+          type="date"
+          value={plazo}
+          onChange={(e) => setPlazo(e.target.value)}
+          onBlur={() => onBlurUpdate(obra.id, "plazo", plazo ? new Date(plazo).toISOString() : "")}
+          className={`w-full px-2 py-1 text-xs border rounded focus:ring-1 focus:ring-primary-400 focus:outline-none bg-transparent focus:bg-white transition-colors ${
+            plazoVencido ? "border-danger-400 text-danger-600" : "border-transparent hover:border-slate-200"
+          }`}
+        />
+        {plazoVencido && <p className="text-xs text-danger-500 mt-0.5">Vencido</p>}
       </td>
 
       {/* Acciones */}

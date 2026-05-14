@@ -315,6 +315,7 @@ model ObraPE {
   definicionesTomadas String?      @db.Text
   estado              EstadoObraPE @default(PENDIENTE)
   prioridad           String?
+  plazo               DateTime?
   planta              String?
   observaciones       String?      @db.Text
   creadoPor           String
@@ -326,4 +327,5 @@ model ObraPE {
   @@index([estado])
   @@index([solicitudId])
   @@index([fechaAlta])
+  @@index([plazo])
 }
