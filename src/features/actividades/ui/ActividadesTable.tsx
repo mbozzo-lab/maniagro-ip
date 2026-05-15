@@ -527,7 +527,7 @@ export default function ActividadesTable({
                   </td>
 
                   {/* Detalle */}
-                  <td className="px-3 py-2 max-w-xs">
+                  <td className="px-3 py-2 min-w-[260px]">
                     <EditableCell
                       value={a.detalle}
                       isEditing={isEditing(a.id, "detalle")}

@@ -398,20 +398,20 @@ export default function ObrasPEClient({
 
       {/* Tabla */}
       <div className="overflow-x-auto bg-white rounded-xl border border-slate-200 shadow-sm">
-        <table className="w-full min-w-[1400px]">
+        <table className="w-full min-w-[1800px]">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
-              <Th field="responsable"         label="Responsable"    className="min-w-[140px]" />
+              <Th field="responsable"         label="Responsable"    className="min-w-[150px]" />
               <Th field="solicitud"           label="N° Solicitud"   className="min-w-[140px]" />
-              <Th field="detalle"             label="Detalle"        className="min-w-[320px]" />
-              <Th field="definicionesTomadas" label="Definiciones"   className="min-w-[260px]" />
-              <Th field="fechaAlta"           label="Fecha Alta"     className="min-w-[100px] whitespace-nowrap" />
-              <Th field="ultimaActualizacion" label="Última Act."    className="min-w-[100px] whitespace-nowrap" />
-              <Th field="estado"              label="Estado"         className="min-w-[120px]" />
-              <Th field="prioridad"           label="Prioridad"      className="min-w-[100px]" />
-              <Th field="plazo"               label="Plazo"          className="min-w-[120px] whitespace-nowrap" />
-              <Th field="planta"              label="Planta"         className="min-w-[110px]" />
-              <th className="px-3 py-3 text-center text-xs font-semibold text-slate-600 uppercase min-w-[60px]">
+              <Th field="detalle"             label="Detalle"        className="min-w-[350px]" />
+              <Th field="definicionesTomadas" label="Definiciones"   className="min-w-[300px]" />
+              <Th field="fechaAlta"           label="Fecha Alta"     className="min-w-[120px] whitespace-nowrap" />
+              <Th field="ultimaActualizacion" label="Última Act."    className="min-w-[150px] whitespace-nowrap" />
+              <Th field="estado"              label="Estado"         className="min-w-[130px]" />
+              <Th field="prioridad"           label="Prioridad"      className="min-w-[120px]" />
+              <Th field="plazo"               label="Plazo"          className="min-w-[140px] whitespace-nowrap" />
+              <Th field="planta"              label="Planta"         className="min-w-[120px]" />
+              <th className="px-3 py-3 text-center text-xs font-semibold text-slate-600 uppercase min-w-[80px]">
                 Acc.
               </th>
             </tr>

@@ -219,7 +219,7 @@ export default function MinutasClient({
                       </div>
                       <p className="text-sm text-slate-600 line-clamp-2 mb-3">{minuta.objetivo}</p>
                       <div className="flex items-center gap-4 text-xs text-slate-500">
-                        <span>{minuta.participantes.length} participantes</span>
+                        <span>{(minuta.participantes ?? []).length} participantes</span>
                         {minuta.tareas.length > 0 && (
                           <span className="text-warning-600 font-medium">
                             {minuta.tareas.length} tareas pendientes

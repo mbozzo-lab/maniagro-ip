@@ -198,9 +198,9 @@ export default function SolicitudTable({ solicitudes: initial }: { solicitudes: 
                 <td className="px-4 py-3 text-slate-400 font-mono text-xs whitespace-nowrap">
                   {s.numero ?? s.id}
                 </td>
-                <td className="px-4 py-3 max-w-xs">
-                  <p className="font-medium text-slate-800 truncate">{s.proyecto}</p>
-                  {s.driver && <p className="text-xs text-slate-400 truncate">{s.driver}</p>}
+                <td className="px-4 py-3 min-w-[250px]">
+                  <p className="font-medium text-slate-800 break-words whitespace-normal leading-snug">{s.proyecto}</p>
+                  {s.driver && <p className="text-xs text-slate-400 break-words whitespace-normal">{s.driver}</p>}
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
                   <div className="flex flex-col gap-0.5">
