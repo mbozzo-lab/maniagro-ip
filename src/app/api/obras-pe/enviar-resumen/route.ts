@@ -18,9 +18,10 @@ const ESTADO_LABEL: Record<string, string> = {
 
 export async function POST(request: Request) {
   const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { obras, destinatario } = await request.json();
+  const { obras } = await request.json();
+  const destinatario = session.user.email;
 
   const fechaHoy = format(new Date(), "dd/MM/yyyy", { locale: es });
 
@@ -43,20 +44,22 @@ export async function POST(request: Request) {
       ?? "—";
     const detalle = String(o.detalle ?? "");
     const definiciones = String(o.definicionesTomadas ?? "—");
+    const plazoStr = o.plazo ? format(new Date(o.plazo as string), "dd/MM/yyyy") : "—";
     return [
       String(o.responsable ?? ""),
       solicitud,
-      detalle.length > 60 ? detalle.slice(0, 60) + "…" : detalle,
-      definiciones.length > 60 ? definiciones.slice(0, 60) + "…" : definiciones,
+      detalle.length > 55 ? detalle.slice(0, 55) + "…" : detalle,
+      definiciones.length > 55 ? definiciones.slice(0, 55) + "…" : definiciones,
       format(new Date(o.fechaAlta as string), "dd/MM/yyyy"),
       format(new Date(o.ultimaActualizacion as string), "dd/MM/yyyy"),
       ESTADO_LABEL[o.estado as string] ?? String(o.estado),
+      plazoStr,
     ];
   });
 
   autoTable(doc, {
     startY:     30,
-    head:       [["Responsable", "N° Solicitud", "Detalle", "Definiciones", "Fecha Alta", "Última Act.", "Estado"]],
+    head:       [["Responsable", "N° Solicitud", "Detalle", "Definiciones", "Fecha Alta", "Última Act.", "Estado", "Plazo"]],
     body:       tableBody,
     styles:     { fontSize: 7, cellPadding: 2 },
     headStyles: { fillColor: [15, 118, 110], textColor: 255, fontStyle: "bold" },
@@ -66,9 +69,10 @@ export async function POST(request: Request) {
       1: { cellWidth: 30 },
       2: { cellWidth: 65 },
       3: { cellWidth: 65 },
-      4: { cellWidth: 22 },
-      5: { cellWidth: 22 },
-      6: { cellWidth: 25 },
+      4: { cellWidth: 20 },
+      5: { cellWidth: 20 },
+      6: { cellWidth: 22 },
+      7: { cellWidth: 20 },
     },
   });
 
@@ -81,7 +85,7 @@ export async function POST(request: Request) {
 
   try {
     await resend.emails.send({
-      from: "Maniagro IP <notificaciones@maniagro.com>",
+      from: process.env.RESEND_FROM ?? "onboarding@resend.dev",
       to:   destinatario,
       subject: `Resumen Obras PE — ${fechaHoy}`,
       html: `

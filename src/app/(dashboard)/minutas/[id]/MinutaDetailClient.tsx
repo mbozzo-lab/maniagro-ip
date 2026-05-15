@@ -9,6 +9,8 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import ExportToDriveButton from "@/features/minutas/ui/ExportToDriveButton";
+import { downloadMinutaPDF } from "@/lib/minutaPdfGenerator";
+import type { MinutaForPDF } from "@/lib/minutaPdfGenerator";
 
 interface TareaMinuta {
   id: number;
@@ -79,6 +81,25 @@ export default function MinutaDetailClient({
     plazo: "",
     prioridad: "MEDIA",
   });
+
+  const handleDescargarPDF = () => {
+    downloadMinutaPDF(minuta as unknown as MinutaForPDF);
+  };
+
+  const [enviandoEmail, setEnviandoEmail] = useState(false);
+  const handleEnviarEmail = async () => {
+    setEnviandoEmail(true);
+    try {
+      const res = await fetch(`/api/minutas/${minuta.id}/enviar-pdf`, { method: "POST" });
+      if (!res.ok) throw new Error();
+      const { email } = await res.json() as { email: string };
+      toast.success(`Minuta enviada a ${email}`);
+    } catch {
+      toast.error("Error al enviar la minuta por email");
+    } finally {
+      setEnviandoEmail(false);
+    }
+  };
 
   const handlePublicar = async () => {
     if (!confirm("¿Publicar esta minuta?")) return;
@@ -199,6 +220,12 @@ export default function MinutaDetailClient({
           {minuta.estado === "BORRADOR" && (
             <Button variant="primary" size="sm" onClick={handlePublicar}>Publicar</Button>
           )}
+          <Button variant="outline" size="sm" onClick={handleDescargarPDF}>
+            Descargar PDF
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleEnviarEmail} loading={enviandoEmail}>
+            Enviar por email
+          </Button>
           <ExportToDriveButton minutaId={minuta.id} folderId={driveFolderId} />
           <Button variant="outline" size="sm" onClick={() => router.push(`/minutas/${minuta.id}/editar`)}>
             Editar
