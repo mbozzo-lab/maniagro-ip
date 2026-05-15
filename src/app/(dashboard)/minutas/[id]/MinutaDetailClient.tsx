@@ -8,6 +8,7 @@ import Badge from "@/shared/ui/components/Badge";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import * as XLSX from "xlsx";
 import ExportToDriveButton from "@/features/minutas/ui/ExportToDriveButton";
 import { downloadMinutaPDF } from "@/lib/minutaPdfGenerator";
 import type { MinutaForPDF } from "@/lib/minutaPdfGenerator";
@@ -84,6 +85,65 @@ export default function MinutaDetailClient({
 
   const handleDescargarPDF = () => {
     downloadMinutaPDF(minuta as unknown as MinutaForPDF);
+  };
+
+  const handleDescargarExcel = () => {
+    try {
+      const wb = XLSX.utils.book_new();
+
+      // Hoja: Info general
+      const info = [
+        ["Título",        minuta.titulo],
+        ["Tema",          minuta.tema],
+        ["Fecha",         fechaFormateada],
+        ["Hora inicio",   minuta.horaInicio ?? ""],
+        ["Hora fin",      minuta.horaFin ?? ""],
+        ["Ubicación",     minuta.ubicacion ?? ""],
+        ["Objetivo",      minuta.objetivo],
+        ["Estado",        minuta.estado],
+        ["Creada por",    minuta.creadorNombre],
+        ["Fecha creación", format(new Date(minuta.fechaCreacion), "dd/MM/yyyy HH:mm")],
+      ];
+      const wsInfo = XLSX.utils.aoa_to_sheet(info);
+      wsInfo["!cols"] = [{ wch: 20 }, { wch: 60 }];
+      XLSX.utils.book_append_sheet(wb, wsInfo, "Info");
+
+      // Hoja: Participantes
+      const partRows = [["Nombre", "Email", "Rol"], ...minuta.participantes.map((p) => [p.nombre, p.email, p.rol])];
+      const wsPart = XLSX.utils.aoa_to_sheet(partRows);
+      wsPart["!cols"] = [{ wch: 28 }, { wch: 32 }, { wch: 20 }];
+      XLSX.utils.book_append_sheet(wb, wsPart, "Participantes");
+
+      // Hoja: Tareas
+      const tareaRows = [
+        ["Descripción", "Responsable", "Plazo", "Prioridad", "Estado", "Comentarios"],
+        ...tareas.map((t) => [
+          t.descripcion,
+          t.responsable,
+          t.plazo ? format(new Date(t.plazo + "T00:00:00"), "dd/MM/yyyy") : "",
+          t.prioridad,
+          t.estado,
+          t.comentarios ?? "",
+        ]),
+      ];
+      const wsTareas = XLSX.utils.aoa_to_sheet(tareaRows);
+      wsTareas["!cols"] = [{ wch: 50 }, { wch: 22 }, { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 40 }];
+      XLSX.utils.book_append_sheet(wb, wsTareas, "Tareas");
+
+      // Hoja: Decisiones
+      if ((minuta.decisiones ?? []).length > 0) {
+        const decRows = [["Descripción", "Responsable"], ...(minuta.decisiones ?? []).map((d) => [d.descripcion, d.responsable])];
+        const wsDec = XLSX.utils.aoa_to_sheet(decRows);
+        wsDec["!cols"] = [{ wch: 60 }, { wch: 25 }];
+        XLSX.utils.book_append_sheet(wb, wsDec, "Decisiones");
+      }
+
+      const safeName = minuta.titulo.replace(/[/\\?%*:|"<>]/g, "-").slice(0, 50);
+      XLSX.writeFile(wb, `Minuta_${safeName}_${minuta.fecha}.xlsx`);
+      toast.success("Excel descargado");
+    } catch {
+      toast.error("Error al exportar Excel");
+    }
   };
 
   const [enviandoEmail, setEnviandoEmail] = useState(false);
@@ -220,6 +280,9 @@ export default function MinutaDetailClient({
           {minuta.estado === "BORRADOR" && (
             <Button variant="primary" size="sm" onClick={handlePublicar}>Publicar</Button>
           )}
+          <Button variant="outline" size="sm" onClick={handleDescargarExcel}>
+            Descargar Excel
+          </Button>
           <Button variant="outline" size="sm" onClick={handleDescargarPDF}>
             Descargar PDF
           </Button>

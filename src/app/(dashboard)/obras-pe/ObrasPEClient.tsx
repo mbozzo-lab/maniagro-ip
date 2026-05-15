@@ -7,6 +7,9 @@ import Button from "@/shared/ui/components/Button";
 import Badge from "@/shared/ui/components/Badge";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import * as XLSX from "xlsx";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface SolicitudRef { id: number; proyecto: string }
 
@@ -153,6 +156,97 @@ export default function ObrasPEClient({
     }
   };
 
+  const handleExportExcel = () => {
+    try {
+      const data = obrasOrdenadas.map((o, i) => ({
+        "#":                     i + 1,
+        "Responsable":           o.responsable,
+        "N° Solicitud":          o.solicitud?.proyecto ?? o.numeroSolicitud ?? "",
+        "Detalle":               o.detalle,
+        "Definiciones Tomadas":  o.definicionesTomadas ?? "",
+        "Estado":                o.estado,
+        "Prioridad":             o.prioridad ?? "",
+        "Plazo":                 o.plazo ? format(new Date(o.plazo), "dd/MM/yyyy") : "",
+        "Planta":                o.planta ?? "",
+        "Fecha Alta":            format(new Date(o.fechaAlta), "dd/MM/yyyy"),
+        "Última Actualización":  format(new Date(o.ultimaActualizacion), "dd/MM/yyyy HH:mm"),
+      }));
+      const ws = XLSX.utils.json_to_sheet(data);
+      ws["!cols"] = [
+        { wch: 5 }, { wch: 22 }, { wch: 18 }, { wch: 55 }, { wch: 55 },
+        { wch: 13 }, { wch: 12 }, { wch: 12 }, { wch: 16 }, { wch: 12 }, { wch: 18 },
+      ];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Obras PE");
+      XLSX.writeFile(wb, `Obras_PE_${new Date().toISOString().split("T")[0]}.xlsx`);
+      toast.success("Excel descargado");
+    } catch {
+      toast.error("Error al exportar Excel");
+    }
+  };
+
+  const handleExportPDF = () => {
+    try {
+      const doc = new jsPDF({ orientation: "landscape" });
+      const pageW = doc.internal.pageSize.getWidth();
+
+      doc.setFillColor(15, 118, 110);
+      doc.rect(0, 0, pageW, 28, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(16);
+      doc.setFont("helvetica", "bold");
+      doc.text("MANIAGRO — Seguimiento de Obras PE", 14, 13);
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Generado: ${new Date().toLocaleString("es-AR")}  ·  ${obrasOrdenadas.length} obras`, 14, 22);
+      doc.setTextColor(0, 0, 0);
+
+      autoTable(doc, {
+        startY: 32,
+        head:   [["#", "Responsable", "N° Sol.", "Detalle", "Definiciones", "Estado", "Prior.", "Plazo", "Planta"]],
+        body:   obrasOrdenadas.map((o, i) => [
+          i + 1,
+          o.responsable,
+          o.solicitud?.proyecto ?? o.numeroSolicitud ?? "—",
+          o.detalle.length > 60 ? o.detalle.slice(0, 60) + "…" : o.detalle,
+          (o.definicionesTomadas ?? "").length > 55 ? (o.definicionesTomadas ?? "").slice(0, 55) + "…" : (o.definicionesTomadas ?? "—"),
+          o.estado,
+          o.prioridad ?? "—",
+          o.plazo ? format(new Date(o.plazo), "dd/MM/yyyy") : "—",
+          o.planta ?? "—",
+        ]),
+        styles:     { fontSize: 7, cellPadding: 2 },
+        headStyles: { fillColor: [15, 118, 110], textColor: 255, fontStyle: "bold" },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        columnStyles: {
+          0: { cellWidth: 8,  halign: "center" },
+          1: { cellWidth: 30 },
+          2: { cellWidth: 25 },
+          3: { cellWidth: 62 },
+          4: { cellWidth: 58 },
+          5: { cellWidth: 22 },
+          6: { cellWidth: 18 },
+          7: { cellWidth: 20 },
+          8: { cellWidth: 20 },
+        },
+        margin: { left: 14, right: 14 },
+      });
+
+      const pages = (doc.internal as unknown as { getNumberOfPages: () => number }).getNumberOfPages();
+      for (let p = 1; p <= pages; p++) {
+        doc.setPage(p);
+        doc.setFontSize(7);
+        doc.setTextColor(148, 163, 184);
+        doc.text(`Página ${p} de ${pages}`, pageW - 14, doc.internal.pageSize.getHeight() - 5, { align: "right" });
+      }
+
+      doc.save(`Obras_PE_${new Date().toISOString().split("T")[0]}.pdf`);
+      toast.success("PDF descargado");
+    } catch {
+      toast.error("Error al exportar PDF");
+    }
+  };
+
   const handleEnviarPDF = async () => {
     setEnviando(true);
     try {
@@ -209,8 +303,14 @@ export default function ObrasPEClient({
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" onClick={handleExportExcel}>
+            Exportar Excel
+          </Button>
+          <Button variant="outline" onClick={handleExportPDF}>
+            Exportar PDF
+          </Button>
           <Button variant="outline" onClick={handleEnviarPDF} loading={enviando}>
-            Enviar PDF
+            Enviar por email
           </Button>
           <Button variant="outline" onClick={() => router.push("/obras-pe/importar")}>
             <svg className="w-4 h-4 mr-1.5 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -298,18 +398,20 @@ export default function ObrasPEClient({
 
       {/* Tabla */}
       <div className="overflow-x-auto bg-white rounded-xl border border-slate-200 shadow-sm">
-        <table className="w-full min-w-[900px]">
+        <table className="w-full min-w-[1400px]">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
-              <Th field="responsable"         label="Responsable"    className="w-32" />
-              <Th field="solicitud"           label="N° Solicitud"   className="w-36" />
-              <Th field="detalle"             label="Detalle"        className="w-72" />
-              <Th field="definicionesTomadas" label="Definiciones"   className="w-56" />
-              <Th field="fechaAlta"           label="Fecha Alta"     className="w-24" />
-              <Th field="ultimaActualizacion" label="Última Act."    className="w-24" />
-              <Th field="estado"              label="Estado"         className="w-28" />
-              <Th field="plazo"               label="Plazo"          className="w-24" />
-              <th className="px-3 py-3 text-center text-xs font-semibold text-slate-600 uppercase w-16">
+              <Th field="responsable"         label="Responsable"    className="min-w-[140px]" />
+              <Th field="solicitud"           label="N° Solicitud"   className="min-w-[140px]" />
+              <Th field="detalle"             label="Detalle"        className="min-w-[320px]" />
+              <Th field="definicionesTomadas" label="Definiciones"   className="min-w-[260px]" />
+              <Th field="fechaAlta"           label="Fecha Alta"     className="min-w-[100px] whitespace-nowrap" />
+              <Th field="ultimaActualizacion" label="Última Act."    className="min-w-[100px] whitespace-nowrap" />
+              <Th field="estado"              label="Estado"         className="min-w-[120px]" />
+              <Th field="prioridad"           label="Prioridad"      className="min-w-[100px]" />
+              <Th field="plazo"               label="Plazo"          className="min-w-[120px] whitespace-nowrap" />
+              <Th field="planta"              label="Planta"         className="min-w-[110px]" />
+              <th className="px-3 py-3 text-center text-xs font-semibold text-slate-600 uppercase min-w-[60px]">
                 Acc.
               </th>
             </tr>
@@ -358,9 +460,11 @@ function ObraRow({
   const [nroSolicitud,  setNroSolicitud]  = useState(obra.numeroSolicitud ?? "");
   const [detalle,       setDetalle]       = useState(obra.detalle);
   const [definiciones,  setDefiniciones]  = useState(obra.definicionesTomadas ?? "");
+  const [prioridad,     setPrioridad]     = useState(obra.prioridad ?? "");
   const [plazo,         setPlazo]         = useState(
     obra.plazo ? new Date(obra.plazo).toISOString().split("T")[0] : ""
   );
+  const [planta,        setPlanta]        = useState(obra.planta ?? "");
 
   const hoy    = new Date();
   hoy.setHours(0, 0, 0, 0);
@@ -457,6 +561,17 @@ function ObraRow({
         </Badge>
       </td>
 
+      {/* Prioridad */}
+      <td className="px-2 py-2">
+        <input
+          value={prioridad}
+          onChange={(e) => setPrioridad(e.target.value)}
+          onBlur={() => onBlurUpdate(obra.id, "prioridad", prioridad)}
+          placeholder="—"
+          className={cellInput}
+        />
+      </td>
+
       {/* Plazo */}
       <td className="px-2 py-2 whitespace-nowrap">
         <input
@@ -469,6 +584,17 @@ function ObraRow({
           }`}
         />
         {plazoVencido && <p className="text-xs text-danger-500 mt-0.5">Vencido</p>}
+      </td>
+
+      {/* Planta */}
+      <td className="px-2 py-2">
+        <input
+          value={planta}
+          onChange={(e) => setPlanta(e.target.value)}
+          onBlur={() => onBlurUpdate(obra.id, "planta", planta)}
+          placeholder="—"
+          className={cellInput}
+        />
       </td>
 
       {/* Acciones */}
