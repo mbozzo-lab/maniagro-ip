@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Card from "@/shared/ui/components/Card";
 import Button from "@/shared/ui/components/Button";
 import Badge from "@/shared/ui/components/Badge";
+import { toast } from "sonner";
 
 interface TareaResumen {
   id: number;
@@ -50,14 +51,43 @@ export default function MinutasClient({
 }) {
   const router = useRouter();
 
-  const [busqueda,    setBusqueda]    = useState("");
-  const [filtroTema,  setFiltroTema]  = useState("");
-  const [filtroAño,   setFiltroAño]   = useState("");
-  const [filtroMes,   setFiltroMes]   = useState("");
+  const [busqueda,     setBusqueda]     = useState("");
+  const [filtroTema,   setFiltroTema]   = useState("");
+  const [filtroAño,    setFiltroAño]    = useState("");
+  const [filtroMes,    setFiltroMes]    = useState("");
   const [filtroEstado, setFiltroEstado] = useState("");
+  const [selectedIds,  setSelectedIds]  = useState<number[]>([]);
+  const [deletingBulk, setDeletingBulk] = useState(false);
+  const [minutasList,  setMinutasList]  = useState(minutas);
+
+  const toggleSelect = (id: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+  };
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`¿Eliminar ${selectedIds.length} minuta${selectedIds.length !== 1 ? "s" : ""}? Esta acción no se puede deshacer.`)) return;
+    setDeletingBulk(true);
+    try {
+      const res = await fetch("/api/minutas/bulk-delete", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ ids: selectedIds }),
+      });
+      if (!res.ok) throw new Error();
+      const { deleted } = await res.json();
+      setMinutasList((prev) => prev.filter((m) => !selectedIds.includes(m.id)));
+      setSelectedIds([]);
+      toast.success(`${deleted} minuta${deleted !== 1 ? "s" : ""} eliminadas`);
+    } catch {
+      toast.error("Error al eliminar");
+    } finally {
+      setDeletingBulk(false);
+    }
+  };
 
   const minutasFiltradas = useMemo(() => {
-    return minutas.filter((m) => {
+    return minutasList.filter((m) => {
       if (busqueda && !m.titulo.toLowerCase().includes(busqueda.toLowerCase())) return false;
       if (filtroTema   && m.tema    !== filtroTema)   return false;
       if (filtroEstado && m.estado  !== filtroEstado) return false;
@@ -80,14 +110,14 @@ export default function MinutasClient({
   }, [minutasFiltradas]);
 
   const hoy = new Date();
-  const estesMes = minutas.filter((m) => {
+  const estesMes = minutasList.filter((m) => {
     const f = new Date(m.fecha);
     return f.getMonth() === hoy.getMonth() && f.getFullYear() === hoy.getFullYear();
   }).length;
-  const tareasPendientes = minutas.reduce((acc, m) => acc + m.tareas.length, 0);
-  const borradores = minutas.filter((m) => m.estado === "BORRADOR").length;
+  const tareasPendientes = minutasList.reduce((acc, m) => acc + m.tareas.length, 0);
+  const borradores = minutasList.filter((m) => m.estado === "BORRADOR").length;
 
-  const años = [...new Set(minutas.map((m) => new Date(m.fecha).getFullYear()))].sort((a, b) => b - a);
+  const años = [...new Set(minutasList.map((m) => new Date(m.fecha).getFullYear()))].sort((a, b) => b - a);
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
@@ -96,7 +126,7 @@ export default function MinutasClient({
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Minutas de Reunión</h1>
           <p className="text-sm text-slate-500 mt-1">
-            {minutas.length} minutas · {minutas.filter((m) => m.estado === "PUBLICADA").length} publicadas
+            {minutasList.length} minutas · {minutasList.filter((m) => m.estado === "PUBLICADA").length} publicadas
           </p>
         </div>
         <div className="flex gap-2">
@@ -108,6 +138,23 @@ export default function MinutasClient({
           </Button>
         </div>
       </div>
+
+      {/* Bulk action bar */}
+      {selectedIds.length > 0 && (
+        <div className="bg-primary-50 border border-primary-200 rounded-xl px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-primary-800">
+              {selectedIds.length} minuta{selectedIds.length !== 1 ? "s" : ""} seleccionada{selectedIds.length !== 1 ? "s" : ""}
+            </span>
+            <button onClick={() => setSelectedIds([])} className="text-xs text-primary-600 hover:text-primary-800 underline">
+              Cancelar selección
+            </button>
+          </div>
+          <Button variant="danger" size="sm" onClick={handleBulkDelete} loading={deletingBulk}>
+            Eliminar {selectedIds.length}
+          </Button>
+        </div>
+      )}
 
       {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -199,10 +246,25 @@ export default function MinutasClient({
                   {minutasMes.map((minuta) => (
                     <div
                       key={minuta.id}
-                      className="bg-white rounded-xl border border-slate-200 p-5 hover:shadow-md hover:border-slate-300 transition-all cursor-pointer"
+                      className={`relative rounded-xl border p-5 hover:shadow-md transition-all cursor-pointer ${
+                        selectedIds.includes(minuta.id)
+                          ? "border-primary-400 ring-1 ring-primary-300 bg-primary-50/40"
+                          : "bg-white border-slate-200 hover:border-slate-300"
+                      }`}
                       onClick={() => router.push(`/minutas/${minuta.id}`)}
                     >
-                      <div className="flex items-start justify-between mb-2">
+                      <div
+                        className="absolute top-3 right-3 z-10"
+                        onClick={(e) => toggleSelect(minuta.id, e)}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(minuta.id)}
+                          onChange={() => {}}
+                          className="w-4 h-4 text-primary-600 border-slate-300 rounded cursor-pointer"
+                        />
+                      </div>
+                      <div className="flex items-start justify-between mb-2 pr-6">
                         <h3 className="font-semibold text-slate-900 leading-snug flex-1 mr-2">
                           {minuta.titulo}
                         </h3>

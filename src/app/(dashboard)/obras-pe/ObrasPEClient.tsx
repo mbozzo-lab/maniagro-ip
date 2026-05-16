@@ -59,6 +59,8 @@ export default function ObrasPEClient({
   const [sortField,    setSortField]    = useState("fechaAlta");
   const [sortDir,      setSortDir]      = useState<SortDir>("desc");
   const [enviando,     setEnviando]     = useState(false);
+  const [selectedIds,  setSelectedIds]  = useState<number[]>([]);
+  const [deletingBulk, setDeletingBulk] = useState(false);
 
   // Filtros
   const [filtroResp,   setFiltroResp]   = useState<string[]>([]);
@@ -143,6 +145,37 @@ export default function ObrasPEClient({
       toast.error("Error al actualizar estado");
     }
   }, []);
+
+  const toggleSelect = useCallback((id: number) => {
+    setSelectedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds((prev) =>
+      prev.length === obrasOrdenadas.length ? [] : obrasOrdenadas.map((o) => o.id)
+    );
+  }, [obrasOrdenadas]);
+
+  const handleBulkDelete = useCallback(async () => {
+    if (!confirm(`¿Eliminar ${selectedIds.length} obra${selectedIds.length !== 1 ? "s" : ""}? Esta acción no se puede deshacer.`)) return;
+    setDeletingBulk(true);
+    try {
+      const res = await fetch("/api/obras-pe/bulk-delete", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ ids: selectedIds }),
+      });
+      if (!res.ok) throw new Error();
+      const { deleted } = await res.json();
+      setObras((prev) => prev.filter((o) => !selectedIds.includes(o.id)));
+      setSelectedIds([]);
+      toast.success(`${deleted} obra${deleted !== 1 ? "s" : ""} eliminadas`);
+    } catch {
+      toast.error("Error al eliminar");
+    } finally {
+      setDeletingBulk(false);
+    }
+  }, [selectedIds]);
 
   const handleDelete = async (id: number) => {
     if (!confirm("¿Eliminar esta obra PE?")) return;
@@ -396,11 +429,37 @@ export default function ObrasPEClient({
         </div>
       </Card>
 
+      {/* Bulk action bar */}
+      {selectedIds.length > 0 && (
+        <div className="bg-primary-50 border border-primary-200 rounded-xl px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-primary-800">
+              {selectedIds.length} obra{selectedIds.length !== 1 ? "s" : ""} seleccionada{selectedIds.length !== 1 ? "s" : ""}
+            </span>
+            <button onClick={() => setSelectedIds([])} className="text-xs text-primary-600 hover:text-primary-800 underline">
+              Cancelar selección
+            </button>
+          </div>
+          <Button variant="danger" size="sm" onClick={handleBulkDelete} loading={deletingBulk}>
+            Eliminar {selectedIds.length}
+          </Button>
+        </div>
+      )}
+
       {/* Tabla */}
       <div className="overflow-x-auto bg-white rounded-xl border border-slate-200 shadow-sm">
         <table className="w-full min-w-[1800px]">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
+              <th className="px-3 py-3 w-10">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.length === obrasOrdenadas.length && obrasOrdenadas.length > 0}
+                  ref={(el) => { if (el) el.indeterminate = selectedIds.length > 0 && selectedIds.length < obrasOrdenadas.length; }}
+                  onChange={toggleSelectAll}
+                  className="w-4 h-4 text-primary-600 border-slate-300 rounded cursor-pointer"
+                />
+              </th>
               <Th field="responsable"         label="Responsable"    className="min-w-[150px]" />
               <Th field="solicitud"           label="N° Solicitud"   className="min-w-[140px]" />
               <Th field="detalle"             label="Detalle"        className="min-w-[350px]" />
@@ -424,6 +483,8 @@ export default function ObrasPEClient({
                 onBlurUpdate={handleBlurUpdate}
                 onEstadoChange={handleEstadoChange}
                 onDelete={handleDelete}
+                selected={selectedIds.includes(obra.id)}
+                onToggleSelect={toggleSelect}
               />
             ))}
           </tbody>
@@ -450,11 +511,15 @@ function ObraRow({
   onBlurUpdate,
   onEstadoChange,
   onDelete,
+  selected,
+  onToggleSelect,
 }: {
   obra: ObraPE;
   onBlurUpdate:   (id: number, field: string, value: string) => Promise<void>;
   onEstadoChange: (id: number, estado: string) => Promise<void>;
   onDelete:       (id: number) => Promise<void>;
+  selected:       boolean;
+  onToggleSelect: (id: number) => void;
 }) {
   const [responsable,   setResponsable]   = useState(obra.responsable);
   const [nroSolicitud,  setNroSolicitud]  = useState(obra.numeroSolicitud ?? "");
@@ -475,7 +540,16 @@ function ObraRow({
   const cellTextarea = "w-full px-2 py-1 text-sm border border-transparent rounded hover:border-slate-200 focus:border-primary-400 focus:ring-1 focus:ring-primary-400 focus:outline-none bg-transparent focus:bg-white transition-colors resize-y min-h-[40px]";
 
   return (
-    <tr className="hover:bg-slate-50/60 transition-colors align-top">
+    <tr className={`transition-colors align-top ${selected ? "bg-primary-50 border-l-2 border-primary-400" : "hover:bg-slate-50/60"}`}>
+      {/* Checkbox */}
+      <td className="px-3 py-2">
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={() => onToggleSelect(obra.id)}
+          className="w-4 h-4 text-primary-600 border-slate-300 rounded cursor-pointer"
+        />
+      </td>
       {/* Responsable */}
       <td className="px-2 py-2">
         <input

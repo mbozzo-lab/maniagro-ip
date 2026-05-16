@@ -47,8 +47,9 @@ const estadoOptions = [
 
 export default function SolicitudTable({ solicitudes: initial }: { solicitudes: Solicitud[] }) {
   const router       = useRouter();
-  const [solicitudes, setSolicitudes] = useState(initial);
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [solicitudes,  setSolicitudes]  = useState(initial);
+  const [selectedIds,  setSelectedIds]  = useState<number[]>([]);
+  const [deletingBulk, setDeletingBulk] = useState(false);
 
   const allSelected  = selectedIds.length === solicitudes.length && solicitudes.length > 0;
   const someSelected = selectedIds.length > 0;
@@ -87,6 +88,28 @@ export default function SolicitudTable({ solicitudes: initial }: { solicitudes: 
       setSelectedIds([]);
     } catch {
       toast.error("Error al actualizar proyectos", { id: toastId });
+    }
+  }
+
+  async function bulkDelete() {
+    if (!confirm(`¿Eliminar ${selectedIds.length} proyecto${selectedIds.length !== 1 ? "s" : ""}? Esta acción no se puede deshacer.`)) return;
+    setDeletingBulk(true);
+    const toastId = toast.loading(`Eliminando ${selectedIds.length} proyecto${selectedIds.length !== 1 ? "s" : ""}…`);
+    try {
+      const res = await fetch("/api/solicitudes/bulk-delete", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ ids: selectedIds }),
+      });
+      if (!res.ok) throw new Error();
+      const { deleted } = await res.json();
+      setSolicitudes((prev) => prev.filter((s) => !selectedIds.includes(s.id)));
+      toast.success(`${deleted} proyecto${deleted !== 1 ? "s" : ""} eliminados`, { id: toastId });
+      setSelectedIds([]);
+    } catch {
+      toast.error("Error al eliminar proyectos", { id: toastId });
+    } finally {
+      setDeletingBulk(false);
     }
   }
 
@@ -147,6 +170,16 @@ export default function SolicitudTable({ solicitudes: initial }: { solicitudes: 
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               Exportar selección
+            </button>
+            <button
+              onClick={bulkDelete}
+              disabled={deletingBulk}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-danger-600 bg-white border border-danger-200 rounded-lg hover:bg-danger-50 transition-colors disabled:opacity-50"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              {deletingBulk ? "Eliminando…" : "Eliminar selección"}
             </button>
           </div>
         </div>

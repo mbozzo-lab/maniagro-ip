@@ -125,6 +125,8 @@ export default function ActividadesTable({
   const [editingCell, setEditingCell]         = useState<{ id: number; field: string } | null>(null);
   const [editingProyecto, setEditingProyecto] = useState<number | null>(null);
   const [proyectos, setProyectos]             = useState<Array<{ id: number; proyecto: string }>>([]);
+  const [selectedIds,  setSelectedIds]        = useState<number[]>([]);
+  const [deletingBulk, setDeletingBulk]       = useState(false);
 
   useEffect(() => {
     fetch("/api/solicitudes-list")
@@ -254,6 +256,28 @@ export default function ActividadesTable({
     setSendingNotification(false);
   }
 
+  // ── Bulk delete ──────────────────────────────────────────────────────────
+  async function bulkDelete() {
+    if (!confirm(`¿Eliminar ${selectedIds.length} actividad${selectedIds.length !== 1 ? "es" : ""}? Esta acción no se puede deshacer.`)) return;
+    setDeletingBulk(true);
+    try {
+      const res = await fetch("/api/actividades/bulk-delete", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ ids: selectedIds }),
+      });
+      if (!res.ok) throw new Error();
+      const { deleted } = await res.json();
+      setRows((prev) => prev.filter((r) => !selectedIds.includes(r.id)));
+      setSelectedIds([]);
+      toast.success(`${deleted} actividad${deleted !== 1 ? "es" : ""} eliminadas`);
+    } catch {
+      toast.error("Error al eliminar actividades");
+    } finally {
+      setDeletingBulk(false);
+    }
+  }
+
   // ── Delete ────────────────────────────────────────────────────────────────
   async function deleteRow(id: number) {
     if (!confirm("¿Eliminar esta actividad?")) return;
@@ -335,10 +359,40 @@ export default function ActividadesTable({
       )}
     </Modal>
 
+    {selectedIds.length > 0 && (
+      <div className="bg-primary-50 border border-primary-200 rounded-xl px-4 py-3 flex items-center justify-between gap-4 flex-wrap mb-2">
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-medium text-primary-800">
+            {selectedIds.length} actividad{selectedIds.length !== 1 ? "es" : ""} seleccionada{selectedIds.length !== 1 ? "s" : ""}
+          </span>
+          <button onClick={() => setSelectedIds([])} className="text-xs text-primary-600 hover:text-primary-800 underline">
+            Cancelar
+          </button>
+        </div>
+        <button
+          onClick={bulkDelete}
+          disabled={deletingBulk}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-danger-600 rounded-lg hover:bg-danger-700 disabled:opacity-50 transition-colors"
+        >
+          {deletingBulk ? "Eliminando…" : `Eliminar ${selectedIds.length}`}
+        </button>
+      </div>
+    )}
+
     <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm bg-white">
       <table className="w-full text-sm border-collapse">
         <thead>
           <tr className="bg-slate-50 border-b border-slate-200">
+            {/* Selección */}
+            <th className="px-3 py-3 w-10">
+              <input
+                type="checkbox"
+                checked={selectedIds.length === visible.length && visible.length > 0}
+                ref={(el) => { if (el) el.indeterminate = selectedIds.length > 0 && selectedIds.length < visible.length; }}
+                onChange={() => setSelectedIds((prev) => prev.length === visible.length ? [] : visible.map((r) => r.id))}
+                className="w-4 h-4 text-primary-600 border-slate-300 rounded cursor-pointer"
+              />
+            </th>
             {/* Orden */}
             <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase w-20">
               {thSort("Orden", "orden")}
@@ -445,7 +499,7 @@ export default function ActividadesTable({
         <tbody>
           {visible.length === 0 ? (
             <tr>
-              <td colSpan={10} className="px-4 py-10 text-center text-slate-400">
+              <td colSpan={11} className="px-4 py-10 text-center text-slate-400">
                 No hay actividades que coincidan con los filtros.
               </td>
             </tr>
@@ -454,7 +508,16 @@ export default function ActividadesTable({
               const est     = estadoConfig[a.estado] ?? estadoConfig.NO_INICIADO;
               const pNombre = (a as ActividadRow & { proyectoNombre?: string | null }).proyectoNombre ?? null;
               return (
-                <tr key={a.id} className="border-t border-slate-100 hover:bg-slate-50/50">
+                <tr key={a.id} className={`border-t border-slate-100 ${selectedIds.includes(a.id) ? "bg-primary-50/60" : "hover:bg-slate-50/50"}`}>
+                  {/* Checkbox */}
+                  <td className="px-3 py-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(a.id)}
+                      onChange={() => setSelectedIds((prev) => prev.includes(a.id) ? prev.filter((x) => x !== a.id) : [...prev, a.id])}
+                      className="w-4 h-4 text-primary-600 border-slate-300 rounded cursor-pointer"
+                    />
+                  </td>
                   {/* Orden */}
                   <td className="px-3 py-2">
                     <EditableCell

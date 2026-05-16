@@ -4,18 +4,24 @@ import { prisma } from "@/lib/prisma";
 import { EstadoObraPE } from "@/generated/prisma/client";
 
 interface ObraInput {
-  responsable:         string;
-  numeroSolicitud?:    string;
-  detalle:             string;
+  responsable:          string;
+  numeroSolicitud?:     string;
+  detalle:              string;
   definicionesTomadas?: string;
-  estado?:             string;
-  prioridad?:          string;
-  plazo?:              string;
-  planta?:             string;
-  observaciones?:      string;
+  estado?:              string;
+  prioridad?:           string;
+  plazo?:               string;
+  planta?:              string;
+  observaciones?:       string;
 }
 
 const VALID_ESTADO = new Set<string>(Object.values(EstadoObraPE));
+
+function parsePlazo(raw: string | undefined): Date | null {
+  if (!raw?.trim()) return null;
+  const d = new Date(raw);
+  return isNaN(d.getTime()) ? null : d;
+}
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -27,27 +33,83 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "No se recibieron obras" }, { status: 400 });
   }
 
-  const data = obras
-    .filter((o) => o.responsable?.trim() || o.detalle?.trim())
-    .map((o) => ({
-      responsable:         o.responsable?.trim()         ?? "",
-      detalle:             o.detalle?.trim()             ?? "",
-      numeroSolicitud:     o.numeroSolicitud?.trim()     || null,
-      definicionesTomadas: o.definicionesTomadas?.trim() || null,
-      estado:              (VALID_ESTADO.has(o.estado ?? "") ? o.estado : "PENDIENTE") as EstadoObraPE,
-      prioridad:           o.prioridad?.trim() || null,
-      plazo:               (() => { if (!o.plazo?.trim()) return null; const d = new Date(o.plazo); return isNaN(d.getTime()) ? null : d; })(),
-      planta:              o.planta?.trim()    || null,
-      observaciones:       o.observaciones?.trim()       || null,
-      creadoPor:           session.user!.email ?? "",
-      creadorNombre:       session.user!.name  ?? "",
-    }));
+  const obrasValidas = obras.filter((o) => o.responsable?.trim() && o.detalle?.trim());
 
-  if (data.length === 0) {
-    return NextResponse.json({ error: "Ninguna fila tiene datos válidos" }, { status: 400 });
+  if (obrasValidas.length === 0) {
+    return NextResponse.json({ error: "Ninguna fila tiene los campos obligatorios (Responsable y Detalle)" }, { status: 400 });
   }
 
-  const result = await prisma.obraPE.createMany({ data, skipDuplicates: false });
+  // Fetch all existing obras once — avoids N+1 queries
+  const existentes = await prisma.obraPE.findMany({
+    select: { id: true, numeroSolicitud: true, responsable: true, detalle: true },
+  });
 
-  return NextResponse.json({ count: result.count });
+  // Build lookup maps for O(1) matching
+  const porNumeroSolicitud = new Map<string, number>();
+  const porResponsableDetalle = new Map<string, number>();
+  for (const o of existentes) {
+    if (o.numeroSolicitud) porNumeroSolicitud.set(o.numeroSolicitud, o.id);
+    const key = `${o.responsable}::${o.detalle.substring(0, 100)}`;
+    porResponsableDetalle.set(key, o.id);
+  }
+
+  let actualizadas = 0;
+  let insertadas   = 0;
+  let errores      = 0;
+
+  for (const obra of obrasValidas) {
+    try {
+      const nroSol  = obra.numeroSolicitud?.trim() || null;
+      const detPfx  = obra.detalle.trim().substring(0, 100);
+      const resp    = obra.responsable.trim();
+
+      // Find existing: by numeroSolicitud first, then by responsable+detalle prefix
+      let existingId: number | null = null;
+      if (nroSol) existingId = porNumeroSolicitud.get(nroSol) ?? null;
+      if (!existingId) existingId = porResponsableDetalle.get(`${resp}::${detPfx}`) ?? null;
+
+      const sharedData = {
+        responsable:         resp,
+        detalle:             obra.detalle.trim(),
+        numeroSolicitud:     nroSol,
+        definicionesTomadas: obra.definicionesTomadas?.trim() || null,
+        estado:              (VALID_ESTADO.has(obra.estado ?? "") ? obra.estado : "PENDIENTE") as EstadoObraPE,
+        prioridad:           obra.prioridad?.trim()    || null,
+        plazo:               parsePlazo(obra.plazo),
+        planta:              obra.planta?.trim()       || null,
+        observaciones:       obra.observaciones?.trim() || null,
+      };
+
+      if (existingId) {
+        await prisma.obraPE.update({
+          where: { id: existingId },
+          data:  sharedData,
+        });
+        actualizadas++;
+      } else {
+        await prisma.obraPE.create({
+          data: {
+            ...sharedData,
+            creadoPor:     session.user!.email ?? "",
+            creadorNombre: session.user!.name  ?? "",
+          },
+        });
+        insertadas++;
+      }
+    } catch (err) {
+      console.error(`Error procesando obra "${obra.responsable}":`, err);
+      errores++;
+    }
+  }
+
+  const message = `${actualizadas} actualizadas, ${insertadas} insertadas${errores > 0 ? `, ${errores} errores` : ""}`;
+
+  return NextResponse.json({
+    ok:          true,
+    total:       obrasValidas.length,
+    actualizadas,
+    insertadas,
+    errores,
+    message,
+  });
 }

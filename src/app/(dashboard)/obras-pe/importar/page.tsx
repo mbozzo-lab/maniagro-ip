@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
 import Card from "@/shared/ui/components/Card";
@@ -8,25 +8,59 @@ import Button from "@/shared/ui/components/Button";
 import { toast } from "sonner";
 
 interface ObraExcel {
-  responsable:         string;
-  numeroSolicitud?:    string;
-  detalle:             string;
+  responsable:          string;
+  numeroSolicitud?:     string;
+  detalle:              string;
   definicionesTomadas?: string;
-  estado?:             string;
-  prioridad?:          string;
-  plazo?:              string;
-  planta?:             string;
-  observaciones?:      string;
+  estado?:              string;
+  prioridad?:           string;
+  plazo?:               string;
+  planta?:              string;
+  observaciones?:       string;
 }
 
 const ESTADOS_VALIDOS = new Set(["PENDIENTE", "EN_PROCESO", "COMPLETADA", "CANCELADA", "EN_ESPERA"]);
 
 export default function ImportarObrasPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [file, setFile]       = useState<File | null>(null);
-  const [preview, setPreview] = useState<ObraExcel[]>([]);
-  const [parseError, setParseError] = useState("");
+  const [loading,         setLoading]         = useState(false);
+  const [file,            setFile]            = useState<File | null>(null);
+  const [preview,         setPreview]         = useState<ObraExcel[]>([]);
+  const [parseError,      setParseError]      = useState("");
+  const [duplicateStatus, setDuplicateStatus] = useState<Record<number, boolean | null>>({});
+  const [checkingDupes,   setCheckingDupes]   = useState(false);
+
+  // Check duplicates whenever preview changes
+  useEffect(() => {
+    if (preview.length === 0) { setDuplicateStatus({}); return; }
+
+    setCheckingDupes(true);
+    setDuplicateStatus({});
+
+    Promise.all(
+      preview.map(async (obra, index) => {
+        try {
+          const res = await fetch("/api/obras-pe/check-duplicate", {
+            method:  "POST",
+            headers: { "Content-Type": "application/json" },
+            body:    JSON.stringify({
+              numeroSolicitud: obra.numeroSolicitud || null,
+              responsable:     obra.responsable,
+              detalle:         obra.detalle.substring(0, 100),
+            }),
+          });
+          const data = await res.json() as { exists: boolean };
+          return { index, exists: data.exists };
+        } catch {
+          return { index, exists: null };
+        }
+      }),
+    ).then((results) => {
+      const status: Record<number, boolean | null> = {};
+      results.forEach(({ index, exists }) => { status[index] = exists; });
+      setDuplicateStatus(status);
+    }).finally(() => setCheckingDupes(false));
+  }, [preview]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
@@ -38,10 +72,10 @@ export default function ImportarObrasPage() {
 
   const parseExcel = async (f: File) => {
     try {
-      const data      = await f.arrayBuffer();
-      const workbook  = XLSX.read(data);
-      const ws        = workbook.Sheets[workbook.SheetNames[0]];
-      const json      = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "" });
+      const data     = await f.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const ws       = workbook.Sheets[workbook.SheetNames[0]];
+      const json     = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "" });
 
       if (json.length === 0) { setParseError("El archivo Excel está vacío"); setPreview([]); return; }
 
@@ -93,8 +127,15 @@ export default function ImportarObrasPage() {
         const err = await res.json().catch(() => ({}));
         throw new Error((err as { error?: string }).error ?? "Error al importar");
       }
-      const { count } = await res.json() as { count: number };
-      toast.success(`${count} obra(s) importada(s) exitosamente`);
+      const data = await res.json() as {
+        actualizadas: number;
+        insertadas:   number;
+        errores:      number;
+      };
+      toast.success(
+        `Importación exitosa: ${data.insertadas} nueva(s), ${data.actualizadas} actualizada(s)${data.errores > 0 ? `, ${data.errores} con error` : ""}`,
+        { duration: 5000 },
+      );
       router.push("/obras-pe");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al importar obras");
@@ -106,8 +147,8 @@ export default function ImportarObrasPage() {
   const downloadTemplate = () => {
     const template = [
       { Responsable: "Francisco Reynoso", "N° Solicitud": "SOL-2026-001", Detalle: "Reparación de horno E5 - Reemplazo de resistencias", Definiciones: "Reemplazar todas las resistencias y verificar tablero eléctrico", Estado: "PENDIENTE", Prioridad: "Alta", Plazo: "2026-06-30", Planta: "Empaque 5", Observaciones: "Coordinar con mantenimiento para parada programada" },
-      { Responsable: "Javier Martinez",   "N° Solicitud": "SOL-2026-002", Detalle: "Instalación de sensor de temperatura en línea 3", Definiciones: "Sensor modelo XYZ-123, instalación en punto crítico", Estado: "EN_PROCESO", Prioridad: "Media", Plazo: "2026-05-25", Planta: "Producción 3", Observaciones: "Material disponible en almacén" },
-      { Responsable: "Maria Belen Bozzo", "N° Solicitud": "",              Detalle: "Mejora de iluminación en sector de envasado", Definiciones: "Reemplazo de 15 luminarias LED de 60W", Estado: "PENDIENTE", Prioridad: "Baja", Plazo: "2026-07-15", Planta: "Envasado", Observaciones: "" },
+      { Responsable: "Javier Martinez",   "N° Solicitud": "SOL-2026-002", Detalle: "Instalación de sensor de temperatura en línea 3",         Definiciones: "Sensor modelo XYZ-123, instalación en punto crítico",              Estado: "EN_PROCESO", Prioridad: "Media", Plazo: "2026-05-25", Planta: "Producción 3", Observaciones: "Material disponible en almacén" },
+      { Responsable: "Maria Belen Bozzo", "N° Solicitud": "",              Detalle: "Mejora de iluminación en sector de envasado",              Definiciones: "Reemplazo de 15 luminarias LED de 60W",                            Estado: "PENDIENTE", Prioridad: "Baja", Plazo: "2026-07-15", Planta: "Envasado",     Observaciones: "" },
     ];
     const ws = XLSX.utils.json_to_sheet(template);
     ws["!cols"] = [{ wch: 22 }, { wch: 16 }, { wch: 52 }, { wch: 52 }, { wch: 13 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 40 }];
@@ -117,12 +158,18 @@ export default function ImportarObrasPage() {
     toast.success("Plantilla descargada");
   };
 
+  // Stats derived from duplicateStatus
+  const checkedCount  = Object.keys(duplicateStatus).length;
+  const newCount      = Object.values(duplicateStatus).filter((v) => v === false).length;
+  const updateCount   = Object.values(duplicateStatus).filter((v) => v === true).length;
+  const hasWarning    = updateCount > 0;
+
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-6xl mx-auto">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Importar Obras desde Excel</h1>
-          <p className="text-sm text-slate-500 mt-1">Cargá múltiples obras de una sola vez desde un archivo Excel</p>
+          <p className="text-sm text-slate-500 mt-1">Cargá múltiples obras de una sola vez. Las existentes se actualizarán; las nuevas se insertarán.</p>
         </div>
         <Button variant="ghost" onClick={() => router.push("/obras-pe")}>← Volver</Button>
       </div>
@@ -134,7 +181,7 @@ export default function ImportarObrasPage() {
             <p className="text-sm font-semibold text-slate-700 mb-2">Formato del Excel — columnas reconocidas:</p>
             <ul className="text-sm text-slate-600 space-y-1 list-disc list-inside">
               <li><strong>Responsable</strong> (obligatorio)</li>
-              <li><strong>N° Solicitud</strong> (opcional)</li>
+              <li><strong>N° Solicitud</strong> (opcional) — si coincide con una obra existente, la actualizará</li>
               <li><strong>Detalle</strong> (obligatorio)</li>
               <li><strong>Definiciones</strong> o <strong>Definiciones Tomadas</strong> (opcional)</li>
               <li><strong>Estado</strong> (opcional) — PENDIENTE, EN_PROCESO, COMPLETADA, CANCELADA, EN_ESPERA</li>
@@ -157,13 +204,7 @@ export default function ImportarObrasPage() {
             htmlFor="file-upload"
             className="block border-2 border-dashed border-slate-300 rounded-lg p-8 text-center hover:border-primary-400 transition-colors cursor-pointer"
           >
-            <input
-              id="file-upload"
-              type="file"
-              accept=".xlsx,.xls"
-              onChange={handleFileChange}
-              className="hidden"
-            />
+            <input id="file-upload" type="file" accept=".xlsx,.xls" onChange={handleFileChange} className="hidden" />
             <div className="mx-auto mb-3 w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center">
               <svg className="w-7 h-7 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
@@ -198,7 +239,7 @@ export default function ImportarObrasPage() {
 
       {/* Preview */}
       {preview.length > 0 && (
-        <Card title={`2. Vista previa — ${preview.length} obra${preview.length !== 1 ? "s" : ""} detectadas`}>
+        <Card title={`2. Vista previa — ${preview.length} obra${preview.length !== 1 ? "s" : ""} detectadas${checkingDupes ? " · Verificando duplicados…" : checkedCount === preview.length ? ` · ${newCount} nuevas, ${updateCount} a actualizar` : ""}`}>
           <div className="overflow-x-auto">
             <table className="w-full text-sm border-collapse">
               <thead>
@@ -209,37 +250,57 @@ export default function ImportarObrasPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {preview.slice(0, 10).map((obra, i) => (
-                  <tr key={i} className="hover:bg-slate-50">
-                    <td className="px-3 py-2 text-slate-400 text-xs font-mono">{i + 1}</td>
-                    <td className="px-3 py-2 font-medium text-slate-900">{obra.responsable}</td>
-                    <td className="px-3 py-2 text-slate-500">{obra.numeroSolicitud || "—"}</td>
-                    <td className="px-3 py-2 text-slate-700 max-w-xs truncate" title={obra.detalle}>{obra.detalle}</td>
-                    <td className="px-3 py-2">
-                      <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
-                        obra.estado === "COMPLETADA" ? "bg-green-100 text-green-700" :
-                        obra.estado === "EN_PROCESO" ? "bg-blue-100 text-blue-700"  :
-                        obra.estado === "CANCELADA"  ? "bg-slate-100 text-slate-600":
-                        "bg-yellow-100 text-yellow-700"
-                      }`}>
-                        {ESTADOS_VALIDOS.has(obra.estado ?? "") ? obra.estado : "PENDIENTE"}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 text-slate-500">{obra.prioridad || "—"}</td>
-                    <td className="px-3 py-2 text-slate-500">
-                      {obra.plazo
-                        ? (() => { const d = new Date(obra.plazo); return isNaN(d.getTime()) ? obra.plazo : d.toLocaleDateString("es-AR"); })()
-                        : "—"}
-                    </td>
-                    <td className="px-3 py-2 text-slate-500">{obra.planta || "—"}</td>
-                  </tr>
-                ))}
+                {preview.slice(0, 10).map((obra, i) => {
+                  const status = duplicateStatus[i];
+                  return (
+                    <tr key={i} className="hover:bg-slate-50">
+                      <td className="px-3 py-2 text-slate-400 text-xs font-mono">
+                        <div className="flex flex-col gap-1">
+                          <span>{i + 1}</span>
+                          {status === true && (
+                            <span className="px-1.5 py-0.5 text-xs bg-warning-100 text-warning-700 rounded-full whitespace-nowrap">
+                              Actualizar
+                            </span>
+                          )}
+                          {status === false && (
+                            <span className="px-1.5 py-0.5 text-xs bg-success-100 text-success-700 rounded-full whitespace-nowrap">
+                              Nueva
+                            </span>
+                          )}
+                          {status === undefined && checkingDupes && (
+                            <span className="text-slate-300 text-xs">...</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 font-medium text-slate-900">{obra.responsable}</td>
+                      <td className="px-3 py-2 text-slate-500">{obra.numeroSolicitud || "—"}</td>
+                      <td className="px-3 py-2 text-slate-700 max-w-xs truncate" title={obra.detalle}>{obra.detalle}</td>
+                      <td className="px-3 py-2">
+                        <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
+                          obra.estado === "COMPLETADA" ? "bg-green-100 text-green-700"  :
+                          obra.estado === "EN_PROCESO" ? "bg-blue-100 text-blue-700"   :
+                          obra.estado === "CANCELADA"  ? "bg-slate-100 text-slate-600" :
+                          "bg-yellow-100 text-yellow-700"
+                        }`}>
+                          {ESTADOS_VALIDOS.has(obra.estado ?? "") ? obra.estado : "PENDIENTE"}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-slate-500">{obra.prioridad || "—"}</td>
+                      <td className="px-3 py-2 text-slate-500">
+                        {obra.plazo
+                          ? (() => { const d = new Date(obra.plazo!); return isNaN(d.getTime()) ? obra.plazo : d.toLocaleDateString("es-AR"); })()
+                          : "—"}
+                      </td>
+                      <td className="px-3 py-2 text-slate-500">{obra.planta || "—"}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
           {preview.length > 10 && (
             <p className="text-xs text-slate-400 text-center mt-3 bg-slate-50 py-2 rounded">
-              Mostrando las primeras 10. Se importarán las {preview.length} obras.
+              Mostrando las primeras 10. Se procesarán las {preview.length} obras.
             </p>
           )}
         </Card>
@@ -248,16 +309,52 @@ export default function ImportarObrasPage() {
       {/* Acción */}
       {preview.length > 0 && (
         <Card>
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div>
-              <p className="font-semibold text-slate-900">¿Importar {preview.length} obra{preview.length !== 1 ? "s" : ""}?</p>
-              <p className="text-sm text-slate-500 mt-0.5">Las obras se agregarán a la lista existente</p>
-            </div>
-            <div className="flex gap-3">
-              <Button variant="ghost" onClick={() => router.push("/obras-pe")} disabled={loading}>Cancelar</Button>
-              <Button variant="primary" onClick={handleImport} loading={loading}>
-                Importar {preview.length} obra{preview.length !== 1 ? "s" : ""}
-              </Button>
+          <div className="space-y-4">
+            {/* Stats */}
+            {checkedCount === preview.length && (
+              <div className="grid grid-cols-2 gap-4 p-4 bg-slate-50 rounded-lg">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-success-600">{newCount}</div>
+                  <div className="text-xs text-slate-600 mt-0.5">Obras nuevas</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-warning-600">{updateCount}</div>
+                  <div className="text-xs text-slate-600 mt-0.5">Se actualizarán</div>
+                </div>
+              </div>
+            )}
+
+            {/* Warning if updates exist */}
+            {hasWarning && checkedCount === preview.length && (
+              <div className="bg-warning-50 border border-warning-200 rounded-lg p-4 flex items-start gap-3">
+                <svg className="w-5 h-5 text-warning-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <div>
+                  <p className="text-sm font-semibold text-warning-900">Se actualizarán {updateCount} obra{updateCount !== 1 ? "s" : ""} existente{updateCount !== 1 ? "s" : ""}</p>
+                  <p className="text-xs text-warning-800 mt-0.5">Los datos del Excel reemplazarán los valores actuales. Esta acción no se puede deshacer.</p>
+                </div>
+              </div>
+            )}
+
+            {/* Buttons */}
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div>
+                <p className="font-semibold text-slate-900">¿Proceder con la importación?</p>
+                <p className="text-sm text-slate-500 mt-0.5">
+                  {checkingDupes
+                    ? "Verificando duplicados…"
+                    : checkedCount === preview.length
+                    ? `${newCount} nueva${newCount !== 1 ? "s" : ""}, ${updateCount} a actualizar`
+                    : `${preview.length} obra${preview.length !== 1 ? "s" : ""} en total`}
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <Button variant="ghost" onClick={() => router.push("/obras-pe")} disabled={loading}>Cancelar</Button>
+                <Button variant="primary" onClick={handleImport} loading={loading}>
+                  {loading ? "Importando…" : `Confirmar importación (${preview.length})`}
+                </Button>
+              </div>
             </div>
           </div>
         </Card>
