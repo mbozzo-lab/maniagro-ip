@@ -47,6 +47,8 @@ const ESTADO_LABEL: Record<string, string> = {
 
 type SortDir = "asc" | "desc";
 
+const DATE_FIELDS_OBRAS = new Set(["fechaAlta", "ultimaActualizacion", "plazo"]);
+
 export default function ObrasPEClient({
   obras: initial,
   userEmail,
@@ -56,8 +58,8 @@ export default function ObrasPEClient({
 }) {
   const router = useRouter();
   const [obras,        setObras]        = useState(initial);
-  const [sortField,    setSortField]    = useState("fechaAlta");
-  const [sortDir,      setSortDir]      = useState<SortDir>("desc");
+  const [sortField,    setSortField]    = useState<string | null>(null);
+  const [sortDir,      setSortDir]      = useState<SortDir>("asc");
   const [enviando,     setEnviando]     = useState(false);
   const [selectedIds,  setSelectedIds]  = useState<number[]>([]);
   const [deletingBulk, setDeletingBulk] = useState(false);
@@ -88,29 +90,36 @@ export default function ObrasPEClient({
   }, [obras, filtroResp, filtroEstado, filtroBusq]);
 
   const obrasOrdenadas = useMemo(() => {
+    if (!sortField) return obrasFiltradas;
     return [...obrasFiltradas].sort((a, b) => {
-      let av: string | number = "";
-      let bv: string | number = "";
+      let av: string | null;
+      let bv: string | null;
 
       if (sortField === "solicitud") {
-        av = a.solicitud?.proyecto ?? a.numeroSolicitud ?? "";
-        bv = b.solicitud?.proyecto ?? b.numeroSolicitud ?? "";
+        av = a.solicitud?.proyecto ?? a.numeroSolicitud ?? null;
+        bv = b.solicitud?.proyecto ?? b.numeroSolicitud ?? null;
       } else {
-        av = (a as unknown as Record<string, unknown>)[sortField] as string ?? "";
-        bv = (b as unknown as Record<string, unknown>)[sortField] as string ?? "";
+        av = ((a as unknown as Record<string, unknown>)[sortField] as string | null) ?? null;
+        bv = ((b as unknown as Record<string, unknown>)[sortField] as string | null) ?? null;
       }
 
-      if (av === null || av === undefined || av === "") return 1;
-      if (bv === null || bv === undefined || bv === "") return -1;
+      if (av === null || av === "") return 1;
+      if (bv === null || bv === "") return -1;
 
-      const cmp = String(av).localeCompare(String(bv), "es", { numeric: true });
+      let cmp: number;
+      if (DATE_FIELDS_OBRAS.has(sortField)) {
+        cmp = new Date(av).getTime() - new Date(bv).getTime();
+      } else {
+        cmp = av.localeCompare(bv, "es", { numeric: true, sensitivity: "base" });
+      }
       return sortDir === "asc" ? cmp : -cmp;
     });
   }, [obrasFiltradas, sortField, sortDir]);
 
   const handleSort = (field: string) => {
-    if (sortField === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else { setSortField(field); setSortDir("asc"); }
+    if (sortField !== field) { setSortField(field); setSortDir("asc"); }
+    else if (sortDir === "asc") setSortDir("desc");
+    else { setSortField(null); setSortDir("asc"); }
   };
 
   // Edición inline con debounce (guarda al blur)

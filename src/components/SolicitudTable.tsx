@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { exportToExcel } from "@/lib/export";
@@ -45,11 +45,68 @@ const estadoOptions = [
   { value: "ANULADO",     label: "Anulado" },
 ];
 
+type SortField = "numero" | "proyecto" | "tipo" | "planta" | "asignado" | "avance" | "estado" | "prioridad";
+type SortDir   = "asc" | "desc";
+
+const ESTADO_ORDER: Record<string, number> = {
+  NO_INICIADO: 0, EN_PROCESO: 1, EN_REVISION: 2, FINALIZADO: 3, RETRASADO: 4, ANULADO: 5,
+};
+const PRIORIDAD_ORDER: Record<string, number> = {
+  ALTA: 0, MEDIA: 1, BAJA: 2,
+};
+
 export default function SolicitudTable({ solicitudes: initial }: { solicitudes: Solicitud[] }) {
   const router       = useRouter();
   const [solicitudes,  setSolicitudes]  = useState(initial);
   const [selectedIds,  setSelectedIds]  = useState<number[]>([]);
   const [deletingBulk, setDeletingBulk] = useState(false);
+  const [sortField,    setSortField]    = useState<SortField | null>(null);
+  const [sortDir,      setSortDir]      = useState<SortDir>("asc");
+
+  function handleSort(field: SortField) {
+    if (sortField !== field) { setSortField(field); setSortDir("asc"); }
+    else if (sortDir === "asc") setSortDir("desc");
+    else { setSortField(null); setSortDir("asc"); }
+  }
+
+  const sortedSolicitudes = useMemo(() => {
+    if (!sortField) return solicitudes;
+    return [...solicitudes].sort((a, b) => {
+      let va: string | number | null | undefined;
+      let vb: string | number | null | undefined;
+      switch (sortField) {
+        case "numero":    va = a.numero;    vb = b.numero;    break;
+        case "proyecto":  va = a.proyecto;  vb = b.proyecto;  break;
+        case "tipo":      va = a.tipo;      vb = b.tipo;      break;
+        case "planta":    va = a.planta;    vb = b.planta;    break;
+        case "asignado":  va = a.asignado;  vb = b.asignado;  break;
+        case "avance":    va = a.avance;    vb = b.avance;    break;
+        case "estado":    va = ESTADO_ORDER[a.estado] ?? 99;       vb = ESTADO_ORDER[b.estado] ?? 99;       break;
+        case "prioridad": va = PRIORIDAD_ORDER[a.prioridad] ?? 99; vb = PRIORIDAD_ORDER[b.prioridad] ?? 99; break;
+      }
+      if (va == null || va === "") return 1;
+      if (vb == null || vb === "") return -1;
+      let cmp: number;
+      if (typeof va === "number" && typeof vb === "number") cmp = va - vb;
+      else cmp = String(va).localeCompare(String(vb), "es", { sensitivity: "base" });
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+  }, [solicitudes, sortField, sortDir]);
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) return <span className="text-slate-300 ml-1">↕</span>;
+    return <span className="text-primary-600 ml-1">{sortDir === "asc" ? "↑" : "↓"}</span>;
+  };
+
+  const Th = ({ field, label }: { field: SortField; label: string }) => (
+    <th
+      className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap cursor-pointer select-none hover:text-slate-900"
+      onClick={() => handleSort(field)}
+    >
+      {label}
+      <SortIcon field={field} />
+    </th>
+  );
 
   const allSelected  = selectedIds.length === solicitudes.length && solicitudes.length > 0;
   const someSelected = selectedIds.length > 0;
@@ -199,11 +256,14 @@ export default function SolicitudTable({ solicitudes: initial }: { solicitudes: 
                   className="w-4 h-4 text-primary-600 border-slate-300 rounded focus:ring-primary-500 cursor-pointer"
                 />
               </th>
-              {["#", "Proyecto", "Tipo", "Planta / Línea", "Asignado", "Avance", "Estado", "Prio."].map((h) => (
-                <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">
-                  {h}
-                </th>
-              ))}
+              <Th field="numero"    label="#" />
+              <Th field="proyecto"  label="Proyecto" />
+              <Th field="tipo"      label="Tipo" />
+              <Th field="planta"    label="Planta / Línea" />
+              <Th field="asignado"  label="Asignado" />
+              <Th field="avance"    label="Avance" />
+              <Th field="estado"    label="Estado" />
+              <Th field="prioridad" label="Prio." />
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -214,7 +274,7 @@ export default function SolicitudTable({ solicitudes: initial }: { solicitudes: 
                 </td>
               </tr>
             )}
-            {solicitudes.map((s) => (
+            {sortedSolicitudes.map((s) => (
               <tr
                 key={s.id}
                 onClick={() => router.push(`/solicitudes/${s.id}`)}

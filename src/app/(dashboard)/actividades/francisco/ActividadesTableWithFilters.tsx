@@ -18,17 +18,10 @@ export default function ActividadesTableWithFilters({
 }) {
   const [filters, setFilters] = useState<ActividadFilters>(emptyFilters);
 
-  const visible = actividades.filter((a) => {
-    if (filters.search && !a.detalle.toLowerCase().includes(filters.search.toLowerCase())) return false;
-    if (filters.estados.length > 0 && !filters.estados.includes(a.estado)) return false;
-    if (filters.responsables.length > 0 && !filters.responsables.includes(a.responsable)) return false;
-    return true;
-  });
-
   return (
     <>
       <FiltrosActividades filters={filters} onChange={setFilters} />
-      <ActividadesTable actividades={visible} />
+      <ActividadesTable actividades={actividades} outerFilters={filters} />
     </>
   );
 }

@@ -83,8 +83,10 @@ function EditableCell({
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-type SortField = "orden" | "proyecto" | "detalle" | "estado" | "fecha";
+type SortField = "orden" | "proyecto" | "detalle" | "estado" | "fecha" | "plazo";
 type SortDir   = "asc" | "desc";
+
+const EMPTY_OUTER: { search: string; estados: string[]; responsables: string[] } = { search: "", estados: [], responsables: [] };
 
 function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
   if (!active) return <span className="text-slate-300 ml-1">⇅</span>;
@@ -118,8 +120,10 @@ const filterInput =
 
 export default function ActividadesTable({
   actividades: initial,
+  outerFilters = EMPTY_OUTER,
 }: {
   actividades: ActividadRow[];
+  outerFilters?: { search: string; estados: string[]; responsables: string[] };
 }) {
   const [rows, setRows]                       = useState<ActividadRow[]>(initial);
   const [editingCell, setEditingCell]         = useState<{ id: number; field: string } | null>(null);
@@ -145,7 +149,7 @@ export default function ActividadesTable({
     comentarios: [] as string[],
   });
 
-  const [sortField, setSortField] = useState<SortField>("orden");
+  const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDir,   setSortDir]   = useState<SortDir>("asc");
 
   const [showNotifyModal,     setShowNotifyModal]     = useState(false);
@@ -160,8 +164,9 @@ export default function ActividadesTable({
 
   // ── Sort handler ──────────────────────────────────────────────────────────
   function handleSort(field: SortField) {
-    if (sortField === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else { setSortField(field); setSortDir("asc"); }
+    if (sortField !== field) { setSortField(field); setSortDir("asc"); }
+    else if (sortDir === "asc") setSortDir("desc");
+    else { setSortField(null); setSortDir("asc"); }
   }
 
   // ── Save a field value ────────────────────────────────────────────────────
@@ -291,33 +296,44 @@ export default function ActividadesTable({
 
   // ── Filter + sort ─────────────────────────────────────────────────────────
   const visible = useMemo(() => {
-    const f = filters;
+    const f  = filters;
+    const of = outerFilters;
     const filtered = rows.filter((a) => {
-      if (f.orden && !String(a.orden ?? "").includes(f.orden))                    return false;
-      if (f.proyectos.length > 0 && !f.proyectos.includes(proyectoDisplay(a)))   return false;
+      if (of.search && !a.detalle.toLowerCase().includes(of.search.toLowerCase())) return false;
+      if (of.estados.length > 0 && !of.estados.includes(a.estado)) return false;
+      if (of.responsables.length > 0 && !of.responsables.includes(a.responsable)) return false;
+      if (f.orden && !String(a.orden ?? "").includes(f.orden))                     return false;
+      if (f.proyectos.length > 0 && !f.proyectos.includes(proyectoDisplay(a)))    return false;
       if (f.detalle && !a.detalle.toLowerCase().includes(f.detalle.toLowerCase())) return false;
-      if (f.lineas.length > 0 && !f.lineas.includes(a.linea ?? ""))               return false;
-      if (f.plazos.length > 0 && !f.plazos.includes(a.plazo ?? ""))               return false;
-      if (f.estados.length > 0 && !f.estados.includes(a.estado))                  return false;
+      if (f.lineas.length > 0 && !f.lineas.includes(a.linea ?? ""))                return false;
+      if (f.plazos.length > 0 && !f.plazos.includes(a.plazo ?? ""))                return false;
+      if (f.estados.length > 0 && !f.estados.includes(a.estado))                   return false;
       if (f.comentarios.length > 0 && !f.comentarios.includes(a.comentario ?? "")) return false;
       return true;
     });
 
+    if (!sortField) return filtered;
+
     return filtered.sort((a, b) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let va: any, vb: any;
+      let va: string | number | null;
+      let vb: string | number | null;
       switch (sortField) {
-        case "orden":    va = a.orden ?? 9999;                             vb = b.orden ?? 9999;                             break;
-        case "proyecto": va = proyectoDisplay(a);                          vb = proyectoDisplay(b);                          break;
-        case "detalle":  va = a.detalle;                                  vb = b.detalle;                                   break;
-        case "estado":   va = a.estado;                                   vb = b.estado;                                    break;
-        case "fecha":    va = a.fecha ? new Date(a.fecha).getTime() : 0;  vb = b.fecha ? new Date(b.fecha).getTime() : 0;  break;
+        case "orden":    va = a.orden ?? null;                                        vb = b.orden ?? null;                                        break;
+        case "proyecto": va = proyectoDisplay(a) || null;                             vb = proyectoDisplay(b) || null;                             break;
+        case "detalle":  va = a.detalle || null;                                      vb = b.detalle || null;                                      break;
+        case "estado":   va = a.estado || null;                                       vb = b.estado || null;                                       break;
+        case "plazo":    va = a.plazo ?? null;                                        vb = b.plazo ?? null;                                        break;
+        case "fecha":    va = a.fecha ? new Date(a.fecha).getTime() : null;           vb = b.fecha ? new Date(b.fecha).getTime() : null;           break;
+        default:         va = null; vb = null;
       }
-      if (va < vb) return sortDir === "asc" ? -1 : 1;
-      if (va > vb) return sortDir === "asc" ?  1 : -1;
-      return 0;
+      if (va === null || va === undefined) return 1;
+      if (vb === null || vb === undefined) return -1;
+      let cmp: number;
+      if (typeof va === "number" && typeof vb === "number") cmp = va - vb;
+      else cmp = String(va).localeCompare(String(vb), "es", { sensitivity: "base" });
+      return sortDir === "asc" ? cmp : -cmp;
     });
-  }, [rows, filters, sortField, sortDir]);
+  }, [rows, filters, outerFilters, sortField, sortDir]);
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   const isEditing = (id: number, field: string) =>
@@ -445,7 +461,7 @@ export default function ActividadesTable({
 
             {/* Plazo */}
             <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">
-              Plazo
+              {thSort("Plazo", "plazo")}
               <div className="mt-1">
                 <MultiSelect
                   options={plazoOptions}

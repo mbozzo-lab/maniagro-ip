@@ -93,7 +93,7 @@ export default function ActividadesPageBase({ actividades, owner, ownerName }: A
       {header}
       <ActividadesMetrics actividades={actividades} />
       <FiltrosActividades filters={filters} onChange={setFilters} />
-      <ActividadesTable actividades={filtered} />
+      <ActividadesTable actividades={actividades} outerFilters={filters} />
       {modal}
     </div>
   );
