@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
 import Card from "@/shared/ui/components/Card";
 import Button from "@/shared/ui/components/Button";
 import Input from "@/shared/ui/components/Input";
@@ -16,7 +15,6 @@ interface Decision { descripcion: string; responsable: string }
 
 export default function NuevaMinutaPage() {
   const router  = useRouter();
-  const { data: session } = useSession();
   const [loading, setLoading] = useState(false);
 
   const [form, setForm] = useState({
@@ -55,9 +53,7 @@ export default function NuevaMinutaPage() {
           participantes,
           temas,
           decisiones,
-          estado:        publicar ? "PUBLICADA" : "BORRADOR",
-          creadaPor:     session?.user?.email,
-          creadorNombre: session?.user?.name,
+          estado: publicar ? "PUBLICADA" : "BORRADOR",
         }),
       });
       if (!res.ok) throw new Error();
