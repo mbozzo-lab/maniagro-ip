@@ -120,7 +120,7 @@ export default function MinutaDetailClient({
         ...tareas.map((t) => [
           t.descripcion,
           t.responsable,
-          t.plazo ? format(new Date(t.plazo + "T00:00:00"), "dd/MM/yyyy") : "",
+          t.plazo ? format(new Date(t.plazo.slice(0, 10) + "T00:00:00"), "dd/MM/yyyy") : "",
           t.prioridad,
           t.estado,
           t.comentarios ?? "",
@@ -139,7 +139,7 @@ export default function MinutaDetailClient({
       }
 
       const safeName = minuta.titulo.replace(/[/\\?%*:|"<>]/g, "-").slice(0, 50);
-      XLSX.writeFile(wb, `Minuta_${safeName}_${minuta.fecha}.xlsx`);
+      XLSX.writeFile(wb, `Minuta_${safeName}_${minuta.fecha.slice(0, 10)}.xlsx`);
       toast.success("Excel descargado");
     } catch {
       toast.error("Error al exportar Excel");
@@ -243,7 +243,7 @@ export default function MinutaDetailClient({
   };
 
   const fechaFormateada = format(
-    new Date(minuta.fecha + "T00:00:00"),
+    new Date(minuta.fecha.slice(0, 10) + "T00:00:00"),
     "EEEE d 'de' MMMM 'de' yyyy",
     { locale: es },
   );
@@ -437,7 +437,7 @@ export default function MinutaDetailClient({
                       <span>{t.responsable}</span>
                       {t.plazo && (
                         <span className={vencida ? "text-danger-600 font-medium" : ""}>
-                          {format(new Date(t.plazo + "T00:00:00"), "dd/MM/yyyy")}
+                          {format(new Date(t.plazo.slice(0, 10) + "T00:00:00"), "dd/MM/yyyy")}
                           {vencida ? " (vencida)" : ""}
                         </span>
                       )}

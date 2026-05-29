@@ -99,7 +99,7 @@ export function generateMinutaPDF(minuta: MinutaForPDF): jsPDF {
 
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
-  const fechaStr = format(new Date(minuta.fecha + "T00:00:00"), "EEEE d 'de' MMMM 'de' yyyy", { locale: es });
+  const fechaStr = format(new Date(minuta.fecha.slice(0, 10) + "T00:00:00"), "EEEE d 'de' MMMM 'de' yyyy", { locale: es });
   const horario  = minuta.horaInicio
     ? `  ·  ${minuta.horaInicio}${minuta.horaFin ? ` – ${minuta.horaFin}` : ""}`
     : "";
@@ -239,7 +239,7 @@ export function generateMinutaPDF(minuta: MinutaForPDF): jsPDF {
       body:   minuta.tareas.map((t) => [
         t.descripcion,
         t.responsable,
-        t.plazo ? format(new Date(t.plazo + "T00:00:00"), "dd/MM/yyyy") : "—",
+        t.plazo ? format(new Date(t.plazo.slice(0, 10) + "T00:00:00"), "dd/MM/yyyy") : "—",
         PRIORIDAD_LABEL[t.prioridad] ?? t.prioridad,
         ESTADO_LABEL[t.estado]      ?? t.estado,
       ]),

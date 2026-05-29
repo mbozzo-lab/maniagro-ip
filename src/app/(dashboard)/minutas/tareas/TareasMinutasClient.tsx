@@ -137,7 +137,7 @@ export default function TareasMinutasClient({ tareas: initial }: { tareas: Tarea
                   <span>{t.responsable}</span>
                   {t.plazo && (
                     <span className={vencida ? "text-danger-600 font-medium" : proxima ? "text-warning-600 font-medium" : ""}>
-                      {format(new Date(t.plazo + "T00:00:00"), "dd/MM/yyyy")}
+                      {format(new Date(t.plazo.slice(0, 10) + "T00:00:00"), "dd/MM/yyyy")}
                       {vencida ? " — vencida" : proxima ? " — próxima a vencer" : ""}
                     </span>
                   )}
