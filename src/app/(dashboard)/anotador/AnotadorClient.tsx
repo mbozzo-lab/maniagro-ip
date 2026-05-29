@@ -15,6 +15,8 @@ interface DailyNote {
   completada: boolean;
   prioridad: string;
   createdAt: string;
+  arrastrada: boolean;
+  fechaOriginal: string;
 }
 
 const prioridadVariant: Record<string, "danger" | "warning" | "info"> = {
@@ -40,16 +42,30 @@ function offsetDate(base: string, days: number): string {
 }
 
 export default function AnotadorClient() {
-  const [selectedDate, setSelectedDate] = useState(todayStr());
-  const [notes, setNotes]               = useState<DailyNote[]>([]);
-  const [loading, setLoading]           = useState(false);
+  const [selectedDate,    setSelectedDate]    = useState(todayStr());
+  const [notes,           setNotes]           = useState<DailyNote[]>([]);
+  const [loading,         setLoading]         = useState(false);
+  const [hideCompleted,   setHideCompleted]   = useState(false);
 
-  const [newNote,      setNewNote]      = useState("");
-  const [newHora,      setNewHora]      = useState("");
-  const [newPrioridad, setNewPrioridad] = useState("MEDIA");
+  const [newNote,         setNewNote]         = useState("");
+  const [newHora,         setNewHora]         = useState("");
+  const [newPrioridad,    setNewPrioridad]    = useState("MEDIA");
 
-  const [editingId,      setEditingId]      = useState<number | null>(null);
-  const [editingContent, setEditingContent] = useState("");
+  const [editingId,       setEditingId]       = useState<number | null>(null);
+  const [editingContent,  setEditingContent]  = useState("");
+
+  // Sync hideCompleted from localStorage on mount (avoid SSR mismatch)
+  useEffect(() => {
+    if (localStorage.getItem("anotador_hide_completed") === "true") {
+      setHideCompleted(true);
+    }
+  }, []);
+
+  function toggleHideCompleted() {
+    const next = !hideCompleted;
+    setHideCompleted(next);
+    localStorage.setItem("anotador_hide_completed", String(next));
+  }
 
   const loadNotes = useCallback(async () => {
     setLoading(true);
@@ -69,13 +85,18 @@ export default function AnotadorClient() {
     if (!newNote.trim()) { toast.error("Escribe algo primero"); return; }
     try {
       const res = await fetch("/api/daily-notes", {
-        method: "POST",
+        method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fecha: selectedDate, contenido: newNote, hora: newHora || null, prioridad: newPrioridad }),
+        body:    JSON.stringify({
+          fecha:     selectedDate,
+          contenido: newNote,
+          hora:      newHora || null,
+          prioridad: newPrioridad,
+        }),
       });
       if (!res.ok) throw new Error();
-      const data: DailyNote = await res.json();
-      setNotes((n) => [...n, data]);
+      const data = await res.json();
+      setNotes((n) => [...n, { ...data, arrastrada: false, fechaOriginal: selectedDate }]);
       setNewNote(""); setNewHora(""); setNewPrioridad("MEDIA");
       toast.success("Nota agregada");
     } catch {
@@ -83,17 +104,18 @@ export default function AnotadorClient() {
     }
   }
 
+  // Optimistic toggle: flip state immediately, revert on failure
   async function handleToggleComplete(id: number, current: boolean) {
+    setNotes((n) => n.map((x) => x.id === id ? { ...x, completada: !current } : x));
     try {
       const res = await fetch(`/api/daily-notes/${id}`, {
-        method: "PATCH",
+        method:  "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ completada: !current }),
+        body:    JSON.stringify({ completada: !current }),
       });
       if (!res.ok) throw new Error();
-      setNotes((n) => n.map((x) => x.id === id ? { ...x, completada: !current } : x));
-      toast.success(current ? "Marcada como pendiente" : "Marcada como completada");
     } catch {
+      setNotes((n) => n.map((x) => x.id === id ? { ...x, completada: current } : x));
       toast.error("Error al actualizar");
     }
   }
@@ -113,9 +135,9 @@ export default function AnotadorClient() {
   async function handleSaveEdit(id: number) {
     try {
       const res = await fetch(`/api/daily-notes/${id}`, {
-        method: "PATCH",
+        method:  "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contenido: editingContent }),
+        body:    JSON.stringify({ contenido: editingContent }),
       });
       if (!res.ok) throw new Error();
       setNotes((n) => n.map((x) => x.id === id ? { ...x, contenido: editingContent } : x));
@@ -126,8 +148,9 @@ export default function AnotadorClient() {
     }
   }
 
-  const completadas = notes.filter((n) => n.completada).length;
-  const pendientes  = notes.length - completadas;
+  const completadas  = notes.filter((n) => n.completada).length;
+  const pendientes   = notes.length - completadas;
+  const visibleNotes = hideCompleted ? notes.filter((n) => !n.completada) : notes;
 
   return (
     <div className="flex flex-col gap-6 max-w-4xl">
@@ -230,7 +253,21 @@ export default function AnotadorClient() {
       </Card>
 
       {/* Lista de notas */}
-      <Card title={`Notas del día (${notes.length})`}>
+      <Card
+        title={`Notas del día (${notes.length})`}
+        actions={
+          <button
+            onClick={toggleHideCompleted}
+            className={`text-xs px-2.5 py-1 rounded-lg border transition-colors whitespace-nowrap ${
+              hideCompleted
+                ? "bg-slate-800 text-white border-slate-800"
+                : "bg-white text-slate-500 border-slate-300 hover:border-slate-400"
+            }`}
+          >
+            {hideCompleted ? "Mostrar completadas" : "Ocultar completadas"}
+          </button>
+        }
+      >
         {loading ? (
           <p className="text-center text-slate-500 py-8 text-sm">Cargando...</p>
         ) : notes.length === 0 ? (
@@ -238,17 +275,26 @@ export default function AnotadorClient() {
             <svg className="w-12 h-12 mx-auto text-slate-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            <p className="text-slate-500 text-sm">No hay notas para esta fecha</p>
-            <p className="text-xs text-slate-400 mt-1">Agrega tu primera nota arriba</p>
+            <p className="text-slate-500 text-sm">Sin notas para este día</p>
+            <p className="text-xs text-slate-400 mt-1">Agregá una arriba</p>
           </div>
+        ) : visibleNotes.length === 0 ? (
+          <p className="text-center text-slate-400 py-6 text-sm">
+            Todas las notas están completadas —{" "}
+            <button onClick={toggleHideCompleted} className="underline hover:text-slate-600">
+              Mostrar completadas
+            </button>
+          </p>
         ) : (
           <div className="space-y-2">
-            {notes.map((note) => (
+            {visibleNotes.map((note) => (
               <div
                 key={note.id}
                 className={`flex items-start gap-3 p-4 rounded-lg border-2 transition-all ${
                   note.completada
                     ? "bg-emerald-50 border-emerald-200"
+                    : note.arrastrada
+                    ? "bg-amber-50/40 border-amber-200 hover:border-amber-300"
                     : "bg-white border-slate-200 hover:border-slate-300"
                 }`}
               >
@@ -262,7 +308,7 @@ export default function AnotadorClient() {
 
                 {/* Contenido */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     {note.hora && (
                       <span className="text-xs font-medium text-primary-600 bg-primary-50 px-2 py-0.5 rounded">
                         {note.hora}
@@ -271,6 +317,11 @@ export default function AnotadorClient() {
                     <Badge variant={prioridadVariant[note.prioridad] ?? "default"} size="sm">
                       {prioridadLabel[note.prioridad] ?? note.prioridad}
                     </Badge>
+                    {note.arrastrada && (
+                      <span className="text-xs text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+                        ↩ De {format(new Date(note.fechaOriginal + "T00:00:00"), "dd/MM", { locale: es })}
+                      </span>
+                    )}
                   </div>
 
                   {editingId === note.id ? (
@@ -293,7 +344,9 @@ export default function AnotadorClient() {
                       <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>Cancelar</Button>
                     </div>
                   ) : (
-                    <p className={`text-sm whitespace-pre-wrap ${note.completada ? "line-through text-slate-400" : "text-slate-900"}`}>
+                    <p className={`text-sm whitespace-pre-wrap ${
+                      note.completada ? "line-through text-slate-400" : "text-slate-900"
+                    }`}>
                       {note.contenido}
                     </p>
                   )}
