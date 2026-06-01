@@ -239,9 +239,15 @@ export default async function SolicitudesPage({ searchParams }: { searchParams: 
 
       {/* Content */}
       {isKanban ? (
-        <SolicitudKanban solicitudes={solicitudes} />
+        <SolicitudKanban
+          solicitudes={solicitudes}
+          key={[keyword, estados, asignados, plantas, vencimiento].filter(Boolean).join("|") || "all"}
+        />
       ) : (
-        <SolicitudTable solicitudes={solicitudes} />
+        <SolicitudTable
+          solicitudes={solicitudes}
+          key={[keyword, estados, asignados, plantas, vencimiento].filter(Boolean).join("|") || "all"}
+        />
       )}
     </div>
   );

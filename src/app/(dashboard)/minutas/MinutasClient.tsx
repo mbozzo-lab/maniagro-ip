@@ -96,7 +96,7 @@ export default function MinutasClient({
       if (filtroMes && (fecha.getMonth() + 1).toString() !== filtroMes) return false;
       return true;
     });
-  }, [minutas, busqueda, filtroTema, filtroAño, filtroMes, filtroEstado]);
+  }, [minutasList, busqueda, filtroTema, filtroAño, filtroMes, filtroEstado]);
 
   const minutasPorMes = useMemo(() => {
     const grupos: Record<string, Minuta[]> = {};
